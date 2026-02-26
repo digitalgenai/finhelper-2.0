@@ -24,10 +24,17 @@ def serializar_resultado(resultado, lbl1, lbl2):
         if isinstance(esp, (int, float)):
             esp = f"{esp:.2f}"
 
+        div_int = r.get("divergencia_interna", False)
+        dif_int = r.get("dif_interna", "")
+        if isinstance(dif_int, (int, float)):
+            dif_int = f"{dif_int:.2f}"
+
         linha = (
             f"LOC: {r['loc']} | PAX: {r['pax']} | Status: {r['status']}"
             f" | Liq. {lbl1}: {liq1} | Liq. {lbl2}: {liq2}"
             f" | Diferença: {dif} | Esperado Fornecedor: {esp}"
+            f" | Diverg. Interna (Fornec≠Tarifa-Markup): {'SIM' if div_int else 'Não'}"
+            f" | Dif. Interna: {dif_int}"
             f" | Nº Venda: {r.get('venda', '')} | Cliente: {r.get('cliente', '')}"
             f" | Emissor: {r.get('emissor', '')} | Markup: {r.get('markup', '')}"
             f" | Tarifa Total: {r.get('tarifa', '')}"

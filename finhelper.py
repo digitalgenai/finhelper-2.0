@@ -28,6 +28,13 @@ class FinHelper:
                 "Você receberá perguntas sobre os dados de conciliação financeira abaixo. "
                 "Use esses dados como base de verdade absoluta para suas respostas. "
                 "Responda de forma clara e objetiva, citando os valores exatos dos dados.\n\n"
+                "REGRA DE NEGÓCIO IMPORTANTE: O valor da coluna 'Total Fornec. (-DF)' "
+                "(representado nos dados como 'Liq. Sistema Wintour') deve ser IGUAL ao resultado de "
+                "'Total Tarifa' menos 'Markup'. Quando o campo 'Diverg. Interna' mostra 'SIM', "
+                "significa que essa regra foi violada naquele localizador — ou seja, "
+                "Total Fornec. (-DF) ≠ Total Tarifa - Markup. O campo 'Dif. Interna' mostra "
+                "a diferença exata. Use essa informação para explicar divergências internas "
+                "quando o usuário perguntar.\n\n"
                 "DADOS DA CONCILIAÇÃO:\n"
                 f"{contexto}"
             ),

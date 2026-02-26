@@ -122,14 +122,23 @@ class Conciliador:
             pax = g1[loc][0]["pax"] or g2[loc][0]["pax"]
             extras = get_extras(loc)
 
-            if ext1 == ".xlsx":
-                liq_wintour, liq_fornecedor = s1, s2
-            else:
-                liq_wintour, liq_fornecedor = s2, s1
-
             tarifa = safe_float(extras["tarifa"])
             markup = safe_float(extras["markup"])
             esperado = round(tarifa - markup, 2)
+
+            # Verifica consistência interna do xlsx:
+            # Total Fornec. (-DF) deve ser igual a Total Tarifa - Markup
+            if ext1 == ".xlsx":
+                liq_wintour = s1
+            else:
+                liq_wintour = s2
+
+            if tarifa > 0 or markup > 0:
+                dif_interna = round(liq_wintour - esperado, 2)
+                divergencia_interna = abs(dif_interna) > self.TOLERANCIA
+            else:
+                dif_interna = 0.0
+                divergencia_interna = False
 
             status = "Ok" if abs(dif) < self.TOLERANCIA else "Divergente"
 
@@ -137,6 +146,8 @@ class Conciliador:
                 "loc": loc, "pax": pax, "status": status,
                 f"liq_{lbl1}": s1, f"liq_{lbl2}": s2, "dif": dif,
                 "esperado_fornecedor": esperado,
+                "divergencia_interna": divergencia_interna,
+                "dif_interna": dif_interna,
                 **extras,
             })
 
@@ -147,7 +158,9 @@ class Conciliador:
             resultado.append({
                 "loc": loc, "pax": g1[loc][0]["pax"], "status": status,
                 f"liq_{lbl1}": s, f"liq_{lbl2}": "", "dif": "",
-                "esperado_fornecedor": "", **get_extras(loc),
+                "esperado_fornecedor": "",
+                "divergencia_interna": False, "dif_interna": "",
+                **get_extras(loc),
             })
 
         # Somente no grupo 2
@@ -157,7 +170,9 @@ class Conciliador:
             resultado.append({
                 "loc": loc, "pax": g2[loc][0]["pax"], "status": status,
                 f"liq_{lbl1}": "", f"liq_{lbl2}": s, "dif": "",
-                "esperado_fornecedor": "", **get_extras(loc),
+                "esperado_fornecedor": "",
+                "divergencia_interna": False, "dif_interna": "",
+                **get_extras(loc),
             })
 
         # INTERFACE detectado em Emissor ou Cliente → sempre Divergente
@@ -175,6 +190,7 @@ class Conciliador:
         """Gera planilha Excel com o resultado da conciliação e retorna o caminho."""
         rows = []
         for r in resultado:
+            div_int = r.get("divergencia_interna", False)
             rows.append({
                 "Localizador": r["loc"],
                 "Passageiro": r["pax"],
@@ -183,6 +199,8 @@ class Conciliador:
                 f"Liq. {lbl2}": r.get(f"liq_{lbl2}", ""),
                 "Diferenca": r.get("dif", ""),
                 "Esperado Fornecedor (Tarifa-Markup)": r.get("esperado_fornecedor", ""),
+                "Diverg. Interna (Fornec vs Tarifa-Markup)": "SIM" if div_int else "Não",
+                "Dif. Interna": r.get("dif_interna", ""),
                 "Nº Venda": r.get("venda", ""),
                 "Cliente": r.get("cliente", ""),
                 "Emissor": r.get("emissor", ""),
