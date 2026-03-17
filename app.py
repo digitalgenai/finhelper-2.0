@@ -162,4 +162,4 @@ with gr.Blocks(title="FinHelper — Conciliacao Financeira") as app:
     )
 
 if __name__ == "__main__":
-    app.launch()
+    app.launch(share=True)

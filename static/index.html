@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinHelper — Conciliação Financeira</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <a href="#" class="header-left" id="btnHome" title="Voltar ao início">
+            <img src="/static/logo-wee.png" alt="Wee Travel" class="header-logo">
+            <div class="header-titles">
+                <h1>FinHelper</h1>
+            </div>
+        </a>
+        <button class="btn-chat-toggle" id="btnChatToggle" title="Abrir/Fechar chat">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>Chat IA</span>
+        </button>
+    </header>
+
+    <div class="main-wrapper">
+        <!-- Conteúdo principal -->
+        <main class="content" id="mainContent">
+            <!-- Upload -->
+            <section class="card upload-section">
+                <h2>Enviar Arquivos</h2>
+                <p class="hint">Envie dois arquivos (.xlsx, .csv ou .cnf) para comparar o valor líquido por localizador.</p>
+                <div class="upload-grid">
+                    <div class="upload-box upload-flytour" id="dropZone1">
+                        <span class="upload-tag tag-flytour">FLYTOUR</span>
+                        <button class="btn-clear-file" id="btnClear1" title="Remover arquivo" hidden>&times;</button>
+                        <input type="file" id="arquivo1" accept=".xlsx,.csv,.cnf" hidden>
+                        <label for="arquivo1" class="upload-label">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                            <span id="label1">Arquivo Flytour</span>
+                        </label>
+                    </div>
+                    <div class="upload-box upload-wintour" id="dropZone2">
+                        <span class="upload-tag tag-wintour">WINTOUR</span>
+                        <button class="btn-clear-file" id="btnClear2" title="Remover arquivo" hidden>&times;</button>
+                        <input type="file" id="arquivo2" accept=".xlsx,.csv,.cnf" hidden>
+                        <label for="arquivo2" class="upload-label">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                            <span id="label2">Arquivo Wintour</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="upload-actions">
+                    <button class="btn btn-primary" id="btnEnviar" disabled>Processar</button>
+                    <button class="btn btn-secondary" id="btnLimpar">Limpar</button>
+                </div>
+            </section>
+
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <span>Processando arquivos...</span>
+            </div>
+
+            <!-- Resumo -->
+            <section class="card resumo-section" id="resumoSection" hidden>
+                <h2>Resumo</h2>
+                <div class="resumo-grid">
+                    <div class="resumo-card" id="cardLocs1">
+                        <span class="resumo-label" id="lblLocs1">Arquivo 1</span>
+                        <span class="resumo-value" id="valLocs1">0</span>
+                    </div>
+                    <div class="resumo-card" id="cardLocs2">
+                        <span class="resumo-label" id="lblLocs2">Arquivo 2</span>
+                        <span class="resumo-value" id="valLocs2">0</span>
+                    </div>
+                    <div class="resumo-card resumo-ok">
+                        <span class="resumo-label">Ok</span>
+                        <span class="resumo-value" id="valOk">0</span>
+                    </div>
+                    <div class="resumo-card resumo-divergente">
+                        <span class="resumo-label">Divergentes</span>
+                        <span class="resumo-value" id="valDiv">0</span>
+                    </div>
+                    <div class="resumo-card resumo-somente-f">
+                        <span class="resumo-label">Somente Fornecedor</span>
+                        <span class="resumo-value" id="valSomF">0</span>
+                    </div>
+                    <div class="resumo-card resumo-somente-w">
+                        <span class="resumo-label">Somente Wintour</span>
+                        <span class="resumo-value" id="valSomW">0</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Filtros + Download -->
+            <section class="card filtros-section" id="filtrosSection" hidden>
+                <div class="filtros-row">
+                    <div class="filtros-group">
+                        <button class="chip chip-active" data-filter="todos">Todos</button>
+                        <button class="chip chip-divergente" data-filter="Divergente">Divergente</button>
+                        <button class="chip chip-somente-f" data-filter="Somente Fornecedor">Somente Fornecedor</button>
+                        <button class="chip chip-somente-w" data-filter="Somente Wintour">Somente Wintour</button>
+                        <button class="chip chip-ok" data-filter="Ok">Ok</button>
+                    </div>
+                    <button class="btn btn-download" id="btnDownload">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Baixar Excel
+                    </button>
+                </div>
+            </section>
+
+            <!-- Tabela -->
+            <section class="card tabela-section" id="tabelaSection" hidden>
+                <div class="tabela-wrapper">
+                    <table id="tabelaResultado">
+                        <thead>
+                            <tr id="tabelaHead"></tr>
+                        </thead>
+                        <tbody id="tabelaBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <!-- Chat lateral -->
+        <aside class="chat-panel" id="chatPanel">
+            <div class="chat-header">
+                <h3>Chat FinHelper</h3>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="chat-welcome">
+                    <p>Pergunte sobre divergências, localizadores ou qualquer detalhe da conciliação.</p>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Ex: Onde deu divergência no localizador XYZ?"
+                       autocomplete="off">
+                <button class="btn btn-primary btn-send" id="btnChatSend">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                </button>
+            </div>
+        </aside>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
