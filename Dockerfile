@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.docker.txt .
 RUN pip install --no-cache-dir -r requirements.docker.txt
 
-COPY server.py conciliador.py finhelper.py .env ./
+COPY server.py conciliador.py finhelper.py ./
 COPY static/ ./static/
 
 EXPOSE 8000
