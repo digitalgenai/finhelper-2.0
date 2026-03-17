@@ -59,7 +59,8 @@ class Conciliador:
         else:
             raise ValueError(f"Formato {ext} não suportado")
 
-        df = df.loc[:, ~df.columns.str.startswith("Unnamed")].dropna(how="all")
+        df.columns = df.columns.map(lambda x: str(x).strip())
+        df = df.loc[:, ~df.columns.str.startswith("Unnamed", na=False)].dropna(how="all")
 
         col_loc = self.COL_LOC[ext]
         col_liq = self.COL_LIQ[ext]
