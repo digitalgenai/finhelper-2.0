@@ -235,7 +235,7 @@ function renderTabela() {
             <td title="${dif}" class="${difClass}">${dif}</td>
             <td title="${esc(origemDetalhe)}" class="${origemDif ? 'cel-origem-dif' : ''}">${esc(origemDif) || '—'}</td>
             <td title="${esp}">${esp}</td>
-            <td>${divInt === 'SIM' ? '<span class="badge badge-divergente">SIM</span>' : '<span class="badge badge-ok-int">Não</span>'}</td>
+            <td>${divInt === 'SIM' ? '<span class="badge badge-ok-int">SIM</span>' : '<span class="badge badge-divergente">Não</span>'}</td>
             <td title="${difInt}">${difInt}</td>
             <td title="${esc(r.venda || '')}">${esc(r.venda || '')}</td>
             <td title="${esc(r.cliente || '')}">${esc(r.cliente || '')}</td>
