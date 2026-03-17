@@ -11,10 +11,19 @@ class FinHelper:
     """Wrapper para o assistente OpenAI que responde sobre conciliação financeira."""
 
     def __init__(self):
-        self.client = OpenAI()
-        self.assistant_id = os.getenv("OPENAI_ASSISTANT_ID")
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            self.client = OpenAI(api_key=api_key)
+            self.assistant_id = os.getenv("OPENAI_ASSISTANT_ID")
+            self.disponivel = True
+        else:
+            self.client = None
+            self.assistant_id = None
+            self.disponivel = False
 
-    def criar_thread(self, contexto: str) -> str:
+    def criar_thread(self, contexto: str) -> str | None:
+        if not self.disponivel:
+            return None
         """Cria uma thread e envia os dados de conciliação como contexto inicial.
 
         O contexto é adicionado como primeira mensagem (sem run),
@@ -43,6 +52,8 @@ class FinHelper:
 
     def enviar_mensagem(self, thread_id: str, mensagem: str) -> str:
         """Envia uma mensagem do usuário, cria um run e retorna a resposta do assistente."""
+        if not self.disponivel:
+            return "Chat IA indisponível — configure OPENAI_API_KEY nas variáveis de ambiente."
         self.client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
