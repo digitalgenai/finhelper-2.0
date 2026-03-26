@@ -29,12 +29,20 @@ def serializar_resultado(resultado, lbl1, lbl2):
         if isinstance(dif_int, (int, float)):
             dif_int = f"{dif_int:.2f}"
 
+        over_dif = r.get("over_dif", "")
+        if isinstance(over_dif, (int, float)):
+            over_dif = f"{over_dif:.2f}"
+        over_ok = r.get("over_ok", True)
+
         linha = (
             f"LOC: {r['loc']} | PAX: {r['pax']} | Status: {r['status']}"
             f" | Liq. {lbl1}: {liq1} | Liq. {lbl2}: {liq2}"
-            f" | Diferença: {dif} | Esperado Fornecedor: {esp}"
-            f" | Diverg. Interna (Fornec≠Tarifa-Markup): {'SIM' if div_int else 'Não'}"
+            f" | Diferença: {dif} | Esp. Fornec.: {esp}"
+            f" | Diverg. Interna: {'SIM' if div_int else 'Não'}"
             f" | Dif. Interna: {dif_int}"
+            f" | Over Agência: {r.get('over_agencia', '')} | Incentivo Fornec.: {r.get('incentivo_fornecedor', '')}"
+            f" | Dif. Over: {over_dif} | Over OK: {'OK' if over_ok else 'Divergente'}"
+            f" | Forma Pgt.: {r.get('forma_pgt', '')}"
             f" | Nº Venda: {r.get('venda', '')} | Cliente: {r.get('cliente', '')}"
             f" | Emissor: {r.get('emissor', '')} | Markup: {r.get('markup', '')}"
             f" | Tarifa Total: {r.get('tarifa', '')}"
@@ -70,17 +78,23 @@ def processar(arquivo1, arquivo2):
         liq2 = f"{r[f'liq_{lbl2}']:.2f}" if isinstance(r.get(f"liq_{lbl2}"), (int, float)) else ""
         dif = f"{r['dif']:.2f}" if isinstance(r.get("dif"), (int, float)) else ""
         esp = f"{r['esperado_fornecedor']:.2f}" if isinstance(r.get("esperado_fornecedor"), (int, float)) else ""
+        over_dif = f"{r['over_dif']:.2f}" if isinstance(r.get("over_dif"), (int, float)) else ""
+        over_ok = "OK" if r.get("over_ok", True) else "Divergente"
+        div_int = "SIM" if r.get("divergencia_interna") else "Não"
         linhas.append(
             f"| {r['loc']} | {r['pax']} | {r['status']} "
             f"| {liq1} | {liq2} | {dif} | {esp} "
+            f"| {div_int} | {r.get('forma_pgt', '')} "
+            f"| {over_dif} | {over_ok} "
             f"| {r['venda']} | {r['cliente']} | {r['emissor']} "
             f"| {r['markup']} | {r['tarifa']} |"
         )
 
     header = (f"| Localizador | Passageiro | Status "
-              f"| Liq. {lbl1} | Liq. {lbl2} | Diferenca | Esperado Fornec. "
+              f"| Liq. {lbl1} | Liq. {lbl2} | Diferenca | Esp. Fornec. "
+              f"| Diverg. Interna | Forma Pgt. | Dif. Over | Over OK "
               f"| Nº Venda | Cliente | Emissor | Markup | Tarifa Total |\n")
-    header += "|---|---|---|---|---|---|---|---|---|---|---|---|\n"
+    header += "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n"
     tabela = header + "\n".join(linhas) if linhas else "Nenhum registro."
 
     contexto = serializar_resultado(resultado, lbl1, lbl2)
