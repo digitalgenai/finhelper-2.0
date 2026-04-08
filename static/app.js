@@ -151,8 +151,8 @@ function renderTabela() {
     const existingColgroup = document.querySelector('#tabelaResultado colgroup');
     if (existingColgroup) existingColgroup.remove();
     const colgroup = document.createElement('colgroup');
-    //  Loc  Pax   Stat  LiqF  LiqS  Dif   OrigDif Esp  DivI  DifI  OverW IncF  DifOv OvOk  Venda Cli   Emis  Mark  Tar
-    [5,  10,  6,   5,    5,    5,    8,     5,   4,    5,    5,    5,    5,    4,    6,    8,    6,    5,    8].forEach(w => {
+    //  Loc  Pax   Stat  LiqF  LiqS  Dif   OrigDif OverW IncF  DifOv DifT  DifTx Venda Cli   Emis  Mark
+    [5,  10,  6,   5,    5,    5,    8,     5,    5,    5,    5,    5,    6,    8,    6,    5].forEach(w => {
         const col = document.createElement('col');
         col.style.width = w + '%';
         colgroup.appendChild(col);
@@ -163,14 +163,13 @@ function renderTabela() {
         <th title="Localizador">Loc.</th><th>Passageiro</th><th>Status</th>
         <th title="Liq. ${esc(lbl1)}">Liq. ${esc(lbl1)}</th><th title="Liq. ${esc(lbl2)}">Liq. ${esc(lbl2)}</th>
         <th>Diferença</th><th title="Origem da Diferença">Origem Dif.</th>
-        <th title="Esperado Fornecedor">Esp. Fornec.</th>
-        <th title="Divergência Interna">Div. Int.</th><th title="Diferença Interna">Dif. Int.</th>
         <th title="Over Agência (Wintour)">Over (Win.)</th>
         <th title="Incentivo (Fornecedor)">Incentivo (Forn.)</th>
         <th title="Diferença Over/Incentivo">Dif. Over</th>
-        <th title="Over OK?">Over OK</th>
+        <th title="Diferença Tarifa">Dif. Tarifa</th>
+        <th title="Diferença Taxa de Embarque">Dif. Taxa Emb.</th>
         <th title="Número Venda">Nº Venda</th><th>Cliente</th><th>Emissor</th>
-        <th>Markup</th><th title="Tarifa Total">Tarifa</th>
+        <th>Markup</th>
     `;
 
     // Sort: divergentes primeiro
@@ -194,9 +193,6 @@ function renderTabela() {
         const liq1 = fmt(v1);
         const liq2 = fmt(v2);
         const dif = fmt(r.dif);
-        const esp = fmt(r.esperado_fornecedor);
-        const difInt = fmt(r.dif_interna);
-        const divInt = r.divergencia_interna ? 'SIM' : 'Não';
 
         // Classe da célula de diferença
         const numDif = parseFloat(r.dif) || 0;
@@ -233,12 +229,24 @@ function renderTabela() {
         const overWin  = fmt(r.over_agencia);
         const incForn  = fmt(r.incentivo_fornecedor);
         const difOver  = fmt(r.over_dif);
-        const overOk   = r.over_ok;
 
         // Classe da célula Dif. Over
         const numOver = parseFloat(r.over_dif) || 0;
+        const overOk = (r.over_agencia !== '' || r.incentivo_fornecedor !== '') && Math.abs(numOver) <= 0.01;
         const difOverClass = (r.over_agencia !== '' || r.incentivo_fornecedor !== '')
             ? (overOk ? 'cel-dif-zero' : (numOver > 0 ? 'cel-dif-positiva' : 'cel-dif-negativa'))
+            : '';
+
+        const difTar  = fmt(r.tarifa_dif);
+        const numTar  = parseFloat(r.tarifa_dif) || 0;
+        const difTarClass = r.tarifa_dif !== ''
+            ? (Math.abs(numTar) <= 0.01 ? 'cel-dif-zero' : (numTar > 0 ? 'cel-dif-positiva' : 'cel-dif-negativa'))
+            : '';
+
+        const difTax  = fmt(r.taxa_dif);
+        const numTax  = parseFloat(r.taxa_dif) || 0;
+        const difTaxClass = r.taxa_dif !== ''
+            ? (Math.abs(numTax) <= 0.01 ? 'cel-dif-zero' : (numTax > 0 ? 'cel-dif-positiva' : 'cel-dif-negativa'))
             : '';
 
         tr.innerHTML = `
@@ -249,18 +257,15 @@ function renderTabela() {
             <td title="${liq2}" class="${liq2Class}">${liq2}</td>
             <td title="${dif}" class="${difClass}">${dif}</td>
             <td title="${esc(origemDetalhe)}" class="${origemDif ? 'cel-origem-dif' : ''}">${esc(origemDif) || '—'}</td>
-            <td title="${esp}">${esp}</td>
-            <td>${divInt === 'SIM' ? '<span class="badge badge-ok-int">SIM</span>' : '<span class="badge badge-divergente">Não</span>'}</td>
-            <td title="${difInt}">${difInt}</td>
             <td title="${overWin}">${overWin}</td>
             <td title="${incForn}">${incForn}</td>
             <td title="${difOver}" class="${difOverClass}">${difOver}</td>
-            <td>${overOk ? '<span class="badge badge-ok-int">OK</span>' : (r.over_agencia !== '' ? '<span class="badge badge-divergente">Divergente</span>' : '—')}</td>
+            <td title="${difTar}" class="${difTarClass}">${difTar}</td>
+            <td title="${difTax}" class="${difTaxClass}">${difTax}</td>
             <td title="${esc(r.venda || '')}">${esc(r.venda || '')}</td>
             <td title="${esc(r.cliente || '')}">${esc(r.cliente || '')}</td>
             <td title="${esc(r.emissor || '')}">${esc(r.emissor || '')}</td>
             <td title="${esc(r.markup || '')}">${esc(r.markup || '')}</td>
-            <td title="${esc(r.tarifa || '')}">${esc(r.tarifa || '')}</td>
         `;
         tabelaBody.appendChild(tr);
     }

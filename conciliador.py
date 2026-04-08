@@ -231,15 +231,19 @@ class Conciliador:
             )
             over_dif = round(over_agencia - incentivo_csv, 2)
 
-            # Verifica consistência interna do xlsx:
-            # Total Fornec. (-DF) deve ser igual ao esperado calculado acima
-            if ext1 == ".xlsx":
-                liq_wintour = s1
-            else:
-                liq_wintour = s2
+            # Tarifa: Tarifa XLSX − Tarifa CSV/CNF
+            tarifa_forn = round(
+                sum(self.moeda_br(r.get("Tarifa R$", "") or r.get("tarifa_brl", ""))
+                    for r in get_csv_recs(loc)), 2
+            )
+            tarifa_dif = round(tarifa - tarifa_forn, 2)
 
-            dif_interna = round(liq_wintour - esperado, 2)
-            divergencia_interna = abs(dif_interna) > self.TOLERANCIA
+            # Taxa de Embarque: Taxas XLSX − Taxa CSV/CNF
+            taxa_forn = round(
+                sum(self.moeda_br(r.get("Taxa", "") or r.get("tx_emb", ""))
+                    for r in get_csv_recs(loc)), 2
+            )
+            taxa_dif = round(taxas - taxa_forn, 2)
 
             status = "Ok" if abs(dif) < self.TOLERANCIA else "Divergente"
 
@@ -261,18 +265,20 @@ class Conciliador:
                 f"liq_{lbl1}": s1, f"liq_{lbl2}": s2, "dif": dif,
                 "origem_dif": origem_dif,
                 "origem_dif_detalhe": origem_dif_detalhe,
-                "esperado_fornecedor": esperado,
-                "divergencia_interna": divergencia_interna,
-                "dif_interna": dif_interna,
                 "over_agencia": over_agencia,
                 "incentivo_fornecedor": incentivo_csv,
                 "over_dif": over_dif,
-                "over_ok": abs(over_dif) <= self.TOLERANCIA,
+                "tarifa_fornecedor": tarifa_forn,
+                "tarifa_dif": tarifa_dif,
+                "taxa_fornecedor": taxa_forn,
+                "taxa_dif": taxa_dif,
                 "forma_pgt": forma_pgt,
                 **extras,
             })
 
-        _over_defaults = {"over_agencia": "", "incentivo_fornecedor": "", "over_dif": "", "over_ok": False, "forma_pgt": ""}
+        _over_defaults = {"over_agencia": "", "incentivo_fornecedor": "", "over_dif": "",
+                          "tarifa_fornecedor": "", "tarifa_dif": "",
+                          "taxa_fornecedor": "", "taxa_dif": "", "forma_pgt": ""}
 
         # Somente no grupo 1
         for loc in sorted(locs1 - locs2):
@@ -282,8 +288,6 @@ class Conciliador:
                 "loc": loc, "pax": g1[loc][0]["pax"], "status": status,
                 f"liq_{lbl1}": s, f"liq_{lbl2}": "", "dif": "",
                 "origem_dif": f"Localizador ausente no {lbl2}",
-                "esperado_fornecedor": "",
-                "divergencia_interna": False, "dif_interna": "",
                 **_over_defaults,
                 **get_extras(loc),
             })
@@ -296,8 +300,6 @@ class Conciliador:
                 "loc": loc, "pax": g2[loc][0]["pax"], "status": status,
                 f"liq_{lbl1}": "", f"liq_{lbl2}": s, "dif": "",
                 "origem_dif": f"Localizador ausente no {lbl1}",
-                "esperado_fornecedor": "",
-                "divergencia_interna": False, "dif_interna": "",
                 **_over_defaults,
                 **get_extras(loc),
             })
@@ -322,8 +324,6 @@ class Conciliador:
         """Gera planilha Excel com o resultado da conciliação e retorna o caminho."""
         rows = []
         for r in resultado:
-            div_int = r.get("divergencia_interna", False)
-            over_ok = r.get("over_ok", True)
             rows.append({
                 "Localizador": r["loc"],
                 "Passageiro": r["pax"],
@@ -333,18 +333,15 @@ class Conciliador:
                 "Diferenca": r.get("dif", ""),
                 "Campo Divergente": r.get("origem_dif", ""),
                 "Detalhe da Diferença": r.get("origem_dif_detalhe", ""),
-                "Esp. Fornec.": r.get("esperado_fornecedor", ""),
-                "Diverg. Interna": "SIM" if div_int else "Não",
-                "Dif. Interna": r.get("dif_interna", ""),
                 "Over Agência (Wintour)": r.get("over_agencia", ""),
                 "Incentivo (Fornecedor)": r.get("incentivo_fornecedor", ""),
                 "Dif. Over": r.get("over_dif", ""),
-                "Over OK": "OK" if over_ok else "Divergente",
+                "Dif. Tarifa": r.get("tarifa_dif", ""),
+                "Dif. Taxa Emb.": r.get("taxa_dif", ""),
                 "Nº Venda": r.get("venda", ""),
                 "Cliente": r.get("cliente", ""),
                 "Emissor": r.get("emissor", ""),
                 "Markup": r.get("markup", ""),
-                "Tarifa Total": r.get("tarifa", ""),
             })
 
         df = pd.DataFrame(rows)
