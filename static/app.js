@@ -152,7 +152,7 @@ function renderTabela() {
     if (existingColgroup) existingColgroup.remove();
     const colgroup = document.createElement('colgroup');
     //  Loc  Pax   Stat  LiqF  LiqS  Dif   OrigDif OverW IncF  DifOv DifT  DifTx Venda Cli   Emis  Mark
-    [5,  10,  6,   5,    5,    5,    8,     5,    5,    5,    5,    5,    6,    8,    6,    5].forEach(w => {
+    [10,  6,   6,   8,    6,    5,    6,     6,    5,    5,    5,    5,    5,    5,    6,    6].forEach(w => {
         const col = document.createElement('col');
         col.style.width = w + '%';
         colgroup.appendChild(col);
@@ -160,16 +160,18 @@ function renderTabela() {
     document.getElementById('tabelaResultado').prepend(colgroup);
 
     tabelaHead.innerHTML = `
-        <th title="Localizador">Loc.</th><th>Passageiro</th><th>Status</th>
-        <th title="Liq. ${esc(lbl1)}">Liq. ${esc(lbl1)}</th><th title="Liq. ${esc(lbl2)}">Liq. ${esc(lbl2)}</th>
-        <th>Diferença</th><th title="Origem da Diferença">Origem Dif.</th>
+        <th>Passageiro</th><th>Cliente</th><th>Emissor</th>
+        <th title="Origem da Diferença">Origem Dif.</th><th>Status</th>
+        <th title="Diferença Tarifa">Dif. Tarifa</th>
+        <th title="Diferença Taxa de Embarque">Dif. Taxa Emb.</th>
+        <th title="Liq. ${esc(lbl1)}">Liq. ${esc(lbl1)}</th>
+        <th>Diferença</th>
         <th title="Over Agência (Wintour)">Over (Win.)</th>
         <th title="Incentivo (Fornecedor)">Incentivo (Forn.)</th>
         <th title="Diferença Over/Incentivo">Dif. Over</th>
-        <th title="Diferença Tarifa">Dif. Tarifa</th>
-        <th title="Diferença Taxa de Embarque">Dif. Taxa Emb.</th>
-        <th title="Número Venda">Nº Venda</th><th>Cliente</th><th>Emissor</th>
-        <th>Markup</th>
+        <th>Markup</th><th title="Localizador">Loc.</th>
+        <th title="Liq. ${esc(lbl2)}">Liq. ${esc(lbl2)}</th>
+        <th title="Número Venda">Nº Venda</th>
     `;
 
     // Sort: divergentes primeiro
@@ -250,22 +252,22 @@ function renderTabela() {
             : '';
 
         tr.innerHTML = `
-            <td title="${esc(r.loc)}"><strong>${esc(r.loc)}</strong></td>
             <td title="${esc(r.pax)}">${esc(r.pax)}</td>
-            <td>${badgeStatus(r.status)}</td>
-            <td title="${liq1}" class="${liq1Class}">${liq1}</td>
-            <td title="${liq2}" class="${liq2Class}">${liq2}</td>
-            <td title="${dif}" class="${difClass}">${dif}</td>
+            <td title="${esc(r.cliente || '')}">${esc(r.cliente || '')}</td>
+            <td title="${esc(r.emissor || '')}">${esc(r.emissor || '')}</td>
             <td title="${esc(origemDetalhe)}" class="${origemDif ? 'cel-origem-dif' : ''}">${esc(origemDif) || '—'}</td>
+            <td>${badgeStatus(r.status)}</td>
+            <td title="${difTar}" class="${difTarClass}">${difTar}</td>
+            <td title="${difTax}" class="${difTaxClass}">${difTax}</td>
+            <td title="${liq1}" class="${liq1Class}">${liq1}</td>
+            <td title="${dif}" class="${difClass}">${dif}</td>
             <td title="${overWin}">${overWin}</td>
             <td title="${incForn}">${incForn}</td>
             <td title="${difOver}" class="${difOverClass}">${difOver}</td>
-            <td title="${difTar}" class="${difTarClass}">${difTar}</td>
-            <td title="${difTax}" class="${difTaxClass}">${difTax}</td>
-            <td title="${esc(r.venda || '')}">${esc(r.venda || '')}</td>
-            <td title="${esc(r.cliente || '')}">${esc(r.cliente || '')}</td>
-            <td title="${esc(r.emissor || '')}">${esc(r.emissor || '')}</td>
             <td title="${esc(r.markup || '')}">${esc(r.markup || '')}</td>
+            <td title="${esc(r.loc)}"><strong>${esc(r.loc)}</strong></td>
+            <td title="${liq2}" class="${liq2Class}">${liq2}</td>
+            <td title="${esc(r.venda || '')}">${esc(r.venda || '')}</td>
         `;
         tabelaBody.appendChild(tr);
     }

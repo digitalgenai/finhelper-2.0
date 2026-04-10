@@ -93,6 +93,9 @@ class Conciliador:
                 continue
             item = {"liquido": r[cq], "pax": str(r.get(cp, "")).strip()}
             if ext == ".xlsx":
+                forma_pgt = str(r.get("Forma Pgt.", "")).strip().upper()
+                if forma_pgt == "XX":
+                    continue
                 for c in self.XLSX_EXTRAS:
                     item[c] = str(r.get(c, "")).strip() if pd.notna(r.get(c)) else ""
             elif ext in (".csv", ".cnf"):
@@ -325,23 +328,23 @@ class Conciliador:
         rows = []
         for r in resultado:
             rows.append({
-                "Localizador": r["loc"],
                 "Passageiro": r["pax"],
-                "Status": r["status"],
-                f"Liq. {lbl1}": r.get(f"liq_{lbl1}", ""),
-                f"Liq. {lbl2}": r.get(f"liq_{lbl2}", ""),
-                "Diferenca": r.get("dif", ""),
+                "Cliente": r.get("cliente", ""),
+                "Emissor": r.get("emissor", ""),
                 "Campo Divergente": r.get("origem_dif", ""),
                 "Detalhe da Diferença": r.get("origem_dif_detalhe", ""),
+                "Status": r["status"],
+                "Dif. Tarifa": r.get("tarifa_dif", ""),
+                "Dif. Taxa Emb.": r.get("taxa_dif", ""),
+                f"Liq. {lbl1}": r.get(f"liq_{lbl1}", ""),
+                "Diferenca": r.get("dif", ""),
                 "Over Agência (Wintour)": r.get("over_agencia", ""),
                 "Incentivo (Fornecedor)": r.get("incentivo_fornecedor", ""),
                 "Dif. Over": r.get("over_dif", ""),
-                "Dif. Tarifa": r.get("tarifa_dif", ""),
-                "Dif. Taxa Emb.": r.get("taxa_dif", ""),
-                "Nº Venda": r.get("venda", ""),
-                "Cliente": r.get("cliente", ""),
-                "Emissor": r.get("emissor", ""),
                 "Markup": r.get("markup", ""),
+                "Localizador": r["loc"],
+                f"Liq. {lbl2}": r.get(f"liq_{lbl2}", ""),
+                "Nº Venda": r.get("venda", ""),
             })
 
         df = pd.DataFrame(rows)
