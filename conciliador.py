@@ -97,6 +97,9 @@ class Conciliador:
                 forma_pgt = str(r.get("Forma Pgt.", "")).strip().upper()
                 if forma_pgt == "XX":
                     continue
+                cod_status = str(r.get("Cód. Status", "")).strip().upper()
+                if cod_status == "CF":
+                    continue
                 for c in self.XLSX_EXTRAS:
                     item[c] = str(r.get(c, "")).strip() if pd.notna(r.get(c)) else ""
             elif ext in (".csv", ".cnf"):
@@ -267,21 +270,60 @@ class Conciliador:
                 origem_dif = comp["resumo"]
                 origem_dif_detalhe = comp["detalhe"]
 
-            resultado.append({
-                "loc": loc, "pax": pax, "status": status,
-                f"liq_{lbl1}": s1, f"liq_{lbl2}": s2, "dif": dif,
-                "origem_dif": origem_dif,
-                "origem_dif_detalhe": origem_dif_detalhe,
-                "over_agencia": over_agencia,
-                "incentivo_fornecedor": incentivo_csv,
-                "over_dif": over_dif,
-                "tarifa_fornecedor": tarifa_forn,
-                "tarifa_dif": tarifa_dif,
-                "taxa_fornecedor": taxa_forn,
-                "taxa_dif": taxa_dif,
-                "forma_pgt": forma_pgt,
-                **extras,
-            })
+            # Multi-pax: expande em uma linha por Venda Nº do XLSX
+            xlsx_group = g1[loc] if ext1 == ".xlsx" else g2[loc]
+            n = len(xlsx_group)
+
+            if n > 1:
+                s_csv = s2 if ext1 == ".xlsx" else s1
+                s_csv_prop = round(s_csv / n, 2)
+                for rec in xlsx_group:
+                    ind_liq  = round(rec["liquido"], 2)
+                    ind_dif  = round(ind_liq - s_csv_prop, 2)
+                    ind_over = safe_float(rec.get("Over Agência", ""))
+                    ind_tar  = safe_float(rec.get("Total Tarifa", ""))
+                    ind_tax  = safe_float(rec.get("Total Taxas", ""))
+                    form     = str(rec.get("Form", "")).strip()
+                    nr_doc   = str(rec.get("Nr. Doc", "")).strip()
+                    resultado.append({
+                        "loc": loc,
+                        "pax": str(rec.get("pax", "")).strip(),
+                        "status": status,
+                        f"liq_{lbl1}": ind_liq  if ext1 == ".xlsx" else s_csv_prop,
+                        f"liq_{lbl2}": s_csv_prop if ext1 == ".xlsx" else ind_liq,
+                        "dif": ind_dif,
+                        "origem_dif": origem_dif,
+                        "origem_dif_detalhe": origem_dif_detalhe,
+                        "over_agencia": ind_over,
+                        "incentivo_fornecedor": round(incentivo_csv / n, 2),
+                        "over_dif": round(ind_over - incentivo_csv / n, 2),
+                        "tarifa_fornecedor": round(tarifa_forn / n, 2),
+                        "tarifa_dif": round(ind_tar - tarifa_forn / n, 2),
+                        "taxa_fornecedor": round(taxa_forn / n, 2),
+                        "taxa_dif": round(ind_tax - taxa_forn / n, 2),
+                        "forma_pgt": forma_pgt,
+                        "venda":    str(rec.get("Venda Nº", "")).strip(),
+                        "cliente":  str(rec.get("Cod. Cliente", "")).strip(),
+                        "emissor":  str(rec.get("Cod. Emissor", "")).strip(),
+                        "markup":   str(rec.get("Markup", "")).strip(),
+                        "bilhete":  form + nr_doc,
+                    })
+            else:
+                resultado.append({
+                    "loc": loc, "pax": pax, "status": status,
+                    f"liq_{lbl1}": s1, f"liq_{lbl2}": s2, "dif": dif,
+                    "origem_dif": origem_dif,
+                    "origem_dif_detalhe": origem_dif_detalhe,
+                    "over_agencia": over_agencia,
+                    "incentivo_fornecedor": incentivo_csv,
+                    "over_dif": over_dif,
+                    "tarifa_fornecedor": tarifa_forn,
+                    "tarifa_dif": tarifa_dif,
+                    "taxa_fornecedor": taxa_forn,
+                    "taxa_dif": taxa_dif,
+                    "forma_pgt": forma_pgt,
+                    **extras,
+                })
 
         _over_defaults = {"over_agencia": "", "incentivo_fornecedor": "", "over_dif": "",
                           "tarifa_fornecedor": "", "tarifa_dif": "",
@@ -289,27 +331,45 @@ class Conciliador:
 
         # Somente no grupo 1
         for loc in sorted(locs1 - locs2):
-            s = round(sum(r["liquido"] for r in g1[loc]), 2)
             status = "Somente Fornecedor" if ext1 != ".xlsx" else "Somente Wintour"
-            resultado.append({
-                "loc": loc, "pax": g1[loc][0]["pax"], "status": status,
-                f"liq_{lbl1}": s, f"liq_{lbl2}": "", "dif": "",
-                "origem_dif": f"Localizador ausente no {lbl2}",
-                **_over_defaults,
-                **get_extras(loc),
-            })
+            origem = f"Localizador ausente no {lbl2}"
+            recs = g1[loc]
+            for rec in recs:
+                ind_liq = round(rec["liquido"], 2)
+                form    = str(rec.get("Form", "")).strip()
+                nr_doc  = str(rec.get("Nr. Doc", "")).strip()
+                resultado.append({
+                    "loc": loc, "pax": str(rec.get("pax", "")).strip(), "status": status,
+                    f"liq_{lbl1}": ind_liq, f"liq_{lbl2}": "", "dif": "",
+                    "origem_dif": origem,
+                    **_over_defaults,
+                    "bilhete": form + nr_doc,
+                    "venda":   str(rec.get("Venda Nº", "")).strip(),
+                    "cliente": str(rec.get("Cod. Cliente", "")).strip(),
+                    "emissor": str(rec.get("Cod. Emissor", "")).strip(),
+                    "markup":  str(rec.get("Markup", "")).strip(),
+                })
 
         # Somente no grupo 2
         for loc in sorted(locs2 - locs1):
-            s = round(sum(r["liquido"] for r in g2[loc]), 2)
             status = "Somente Fornecedor" if ext2 != ".xlsx" else "Somente Wintour"
-            resultado.append({
-                "loc": loc, "pax": g2[loc][0]["pax"], "status": status,
-                f"liq_{lbl1}": "", f"liq_{lbl2}": s, "dif": "",
-                "origem_dif": f"Localizador ausente no {lbl1}",
-                **_over_defaults,
-                **get_extras(loc),
-            })
+            origem = f"Localizador ausente no {lbl1}"
+            recs = g2[loc]
+            for rec in recs:
+                ind_liq = round(rec["liquido"], 2)
+                form    = str(rec.get("Form", "")).strip()
+                nr_doc  = str(rec.get("Nr. Doc", "")).strip()
+                resultado.append({
+                    "loc": loc, "pax": str(rec.get("pax", "")).strip(), "status": status,
+                    f"liq_{lbl1}": "", f"liq_{lbl2}": ind_liq, "dif": "",
+                    "origem_dif": origem,
+                    **_over_defaults,
+                    "bilhete": form + nr_doc,
+                    "venda":   str(rec.get("Venda Nº", "")).strip(),
+                    "cliente": str(rec.get("Cod. Cliente", "")).strip(),
+                    "emissor": str(rec.get("Cod. Emissor", "")).strip(),
+                    "markup":  str(rec.get("Markup", "")).strip(),
+                })
 
         # INTERFACE detectado em Emissor ou Cliente → sempre Divergente
         for r in resultado:
