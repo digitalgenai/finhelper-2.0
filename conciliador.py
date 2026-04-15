@@ -15,7 +15,8 @@ class Conciliador:
     COL_PAX = {".csv": "Passageiro", ".cnf": "nome_pax", ".xlsx": "Pax"}
 
     XLSX_EXTRAS = ["Venda Nº", "Cod. Cliente", "Cod. Emissor", "Markup", "Total Tarifa", "Total Taxas",
-                   "Total DU/RAV (Bruta)", "Over Agência", "Total Outras Taxas", "Forma Pgt."]
+                   "Total DU/RAV (Bruta)", "Over Agência", "Total Outras Taxas", "Forma Pgt.",
+                   "Form", "Nr. Doc"]
 
     # Mapeamento campo a campo: (nome_exibição, colunas_fornecedor, coluna_xlsx)
     # colunas_fornecedor = lista de possíveis nomes (CSV e CNF)
@@ -110,6 +111,8 @@ class Conciliador:
     def _extras_xlsx(registros: list) -> dict:
         """Extrai dados extras do primeiro registro xlsx."""
         r = registros[0]
+        form   = str(r.get("Form", "")).strip()
+        nr_doc = str(r.get("Nr. Doc", "")).strip()
         return {
             "venda": r.get("Venda Nº", ""),
             "cliente": r.get("Cod. Cliente", ""),
@@ -119,6 +122,7 @@ class Conciliador:
             "taxas": r.get("Total Taxas", ""),
             "over_agencia": r.get("Over Agência", ""),
             "forma_pgt": r.get("Forma Pgt.", ""),
+            "bilhete": form + nr_doc,
         }
 
     # ── Comparação campo a campo ──
@@ -281,7 +285,7 @@ class Conciliador:
 
         _over_defaults = {"over_agencia": "", "incentivo_fornecedor": "", "over_dif": "",
                           "tarifa_fornecedor": "", "tarifa_dif": "",
-                          "taxa_fornecedor": "", "taxa_dif": "", "forma_pgt": ""}
+                          "taxa_fornecedor": "", "taxa_dif": "", "forma_pgt": "", "bilhete": ""}
 
         # Somente no grupo 1
         for loc in sorted(locs1 - locs2):
@@ -345,6 +349,7 @@ class Conciliador:
                 "Localizador": r["loc"],
                 f"Liq. {lbl2}": r.get(f"liq_{lbl2}", ""),
                 "Nº Venda": r.get("venda", ""),
+                "Nº Bilhete": r.get("bilhete", ""),
             })
 
         df = pd.DataFrame(rows)

@@ -152,7 +152,7 @@ function renderTabela() {
     if (existingColgroup) existingColgroup.remove();
     const colgroup = document.createElement('colgroup');
     //  Loc  Pax   Stat  LiqF  LiqS  Dif   OrigDif OverW IncF  DifOv DifT  DifTx Venda Cli   Emis  Mark
-    [10,  6,   6,   8,    6,    5,    6,     6,    5,    5,    5,    5,    5,    5,    6,    6].forEach(w => {
+    [9,   5,   5,   7,    5,    5,    5,     6,    5,    5,    5,    5,    5,    5,    5,    5,    6].forEach(w => {
         const col = document.createElement('col');
         col.style.width = w + '%';
         colgroup.appendChild(col);
@@ -172,6 +172,7 @@ function renderTabela() {
         <th>Markup</th><th title="Localizador">Loc.</th>
         <th title="Liq. ${esc(lbl2)}">Liq. ${esc(lbl2)}</th>
         <th title="Número Venda">Nº Venda</th>
+        <th title="Número do Bilhete">Nº Bilhete</th>
     `;
 
     // Sort: divergentes primeiro
@@ -268,6 +269,7 @@ function renderTabela() {
             <td title="${esc(r.loc)}"><strong>${esc(r.loc)}</strong></td>
             <td title="${liq2}" class="${liq2Class}">${liq2}</td>
             <td title="${esc(r.venda || '')}">${esc(r.venda || '')}</td>
+            <td title="${esc(r.bilhete || '')}">${esc(r.bilhete || '')}</td>
         `;
         tabelaBody.appendChild(tr);
     }
