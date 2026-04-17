@@ -180,9 +180,15 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Resumo ── */
-.resumo-grid {
+.resumo-info-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.resumo-btn-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
 }
 .resumo-card {
@@ -193,17 +199,37 @@ body {
 .resumo-card .resumo-label { display: block; font-size: 0.8rem; color: var(--text-muted); }
 .resumo-card .resumo-value { display: block; font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
 
+.resumo-card-btn {
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    user-select: none;
+}
+.resumo-card-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.resumo-card-btn:active { transform: translateY(0); }
+
 .resumo-ok { border-left-color: var(--verde); }
 .resumo-ok .resumo-value { color: var(--verde); }
+.resumo-ok.active { background: var(--verde); border-left-color: var(--verde); }
+.resumo-ok.active .resumo-label,
+.resumo-ok.active .resumo-value { color: #fff; }
 
 .resumo-divergente { border-left-color: var(--vermelho); }
 .resumo-divergente .resumo-value { color: var(--vermelho); }
+.resumo-divergente.active { background: var(--vermelho); border-left-color: var(--vermelho); }
+.resumo-divergente.active .resumo-label,
+.resumo-divergente.active .resumo-value { color: #fff; }
 
 .resumo-somente-f { border-left-color: var(--amarelo); }
 .resumo-somente-f .resumo-value { color: var(--amarelo); }
+.resumo-somente-f.active { background: var(--amarelo); border-left-color: var(--amarelo); }
+.resumo-somente-f.active .resumo-label,
+.resumo-somente-f.active .resumo-value { color: var(--text); }
 
-.resumo-somente-w { border-left-color: var(--amarelo); }
-.resumo-somente-w .resumo-value { color: var(--amarelo); }
+.resumo-todos { border-left-color: var(--cinza); }
+.resumo-todos .resumo-value { color: var(--text); }
+.resumo-todos.active { background: var(--roxo); border-left-color: var(--roxo); }
+.resumo-todos.active .resumo-label,
+.resumo-todos.active .resumo-value { color: #fff; }
 
 /* ── Filtros ── */
 .filtros-row {
@@ -373,6 +399,7 @@ body {
 @media (max-width: 768px) {
     :root { --chat-w: 100vw; }
     .upload-grid { grid-template-columns: 1fr; }
-    .resumo-grid { grid-template-columns: repeat(2, 1fr); }
+    .resumo-info-row { grid-template-columns: repeat(2, 1fr); }
+    .resumo-btn-row { grid-template-columns: repeat(2, 1fr); }
     .filtros-row { flex-direction: column; align-items: flex-start; }
 }

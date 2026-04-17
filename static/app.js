@@ -2,7 +2,7 @@
 let resultados = [];
 let lbl1 = '';
 let lbl2 = '';
-let filtroAtual = 'todos';
+let filtroAtual = 'Divergente';
 
 // ── DOM refs ──
 const arquivo1 = document.getElementById('arquivo1');
@@ -99,8 +99,10 @@ btnEnviar.addEventListener('click', async () => {
         lbl2 = data.lbl2;
         resultados = data.resultado;
 
+        filtroAtual = 'Divergente';
         renderResumo(data.resumo);
         renderTabela();
+        setActiveResumoBtn('Divergente');
 
         resumoSection.hidden = false;
         filtrosSection.hidden = false;
@@ -126,8 +128,8 @@ btnLimpar.addEventListener('click', () => {
     filtrosSection.hidden = true;
     tabelaSection.hidden = true;
     resultados = [];
-    filtroAtual = 'todos';
-    setActiveChip('todos');
+    filtroAtual = 'Divergente';
+    setActiveResumoBtn(null);
 });
 
 // ── Resumo ──
@@ -139,7 +141,8 @@ function renderResumo(resumo) {
     document.getElementById('valOk').textContent = resumo.ok;
     document.getElementById('valDiv').textContent = resumo.divergentes;
     document.getElementById('valSomF').textContent = resumo.somente_fornecedor;
-    document.getElementById('valSomW').textContent = resumo.somente_wintour;
+    const total = (resumo.ok || 0) + (resumo.divergentes || 0) + (resumo.somente_fornecedor || 0) + (resumo.somente_wintour || 0);
+    document.getElementById('valTodos').textContent = total;
 }
 
 // ── Tabela ──
@@ -298,21 +301,17 @@ function esc(s) {
 }
 
 // ── Filtros ──
-document.querySelectorAll('.chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-        filtroAtual = chip.dataset.filter;
-        setActiveChip(filtroAtual);
+document.querySelectorAll('.resumo-card-btn').forEach(card => {
+    card.addEventListener('click', () => {
+        filtroAtual = card.dataset.filter;
+        setActiveResumoBtn(filtroAtual);
         renderTabela();
     });
 });
 
-function setActiveChip(filter) {
-    document.querySelectorAll('.chip').forEach(c => {
+function setActiveResumoBtn(filter) {
+    document.querySelectorAll('.resumo-card-btn').forEach(c => {
         c.classList.toggle('active', c.dataset.filter === filter);
-        // Remove default active class for "todos"
-        if (c.dataset.filter === 'todos') {
-            c.classList.toggle('chip-active', filter === 'todos');
-        }
     });
 }
 

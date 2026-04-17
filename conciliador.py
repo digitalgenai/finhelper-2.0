@@ -276,31 +276,54 @@ class Conciliador:
 
             if n > 1:
                 s_csv = s2 if ext1 == ".xlsx" else s1
-                s_csv_prop = round(s_csv / n, 2)
+                csv_recs = list(get_csv_recs(loc))
+
+                # Tenta parear por pax; fallback proporcional
+                csv_by_pax = {}
+                for cr in csv_recs:
+                    pax_key = str(cr.get("pax", "")).strip().upper()
+                    csv_by_pax.setdefault(pax_key, []).append(cr)
+
                 for rec in xlsx_group:
                     ind_liq  = round(rec["liquido"], 2)
-                    ind_dif  = round(ind_liq - s_csv_prop, 2)
                     ind_over = safe_float(rec.get("Over Agência", ""))
                     ind_tar  = safe_float(rec.get("Total Tarifa", ""))
                     ind_tax  = safe_float(rec.get("Total Taxas", ""))
                     form     = str(rec.get("Form", "")).strip()
                     nr_doc   = str(rec.get("Nr. Doc", "")).strip()
+
+                    xlsx_pax = str(rec.get("pax", "")).strip().upper()
+                    matches  = csv_by_pax.get(xlsx_pax, [])
+                    if matches:
+                        cr          = matches.pop(0)
+                        s_csv_ind   = round(cr["liquido"], 2)
+                        tar_forn_ind = round(self.moeda_br(cr.get("Tarifa R$", "") or cr.get("tarifa_brl", "")), 2)
+                        tax_forn_ind = round(self.moeda_br(cr.get("Taxa", "") or cr.get("tx_emb", "")), 2)
+                        inc_ind      = round(self.moeda_br(cr.get("Incentivo", "") or cr.get("incentivo", "")), 2)
+                    else:
+                        s_csv_ind    = round(s_csv / n, 2)
+                        tar_forn_ind = round(tarifa_forn / n, 2)
+                        tax_forn_ind = round(taxa_forn / n, 2)
+                        inc_ind      = round(incentivo_csv / n, 2)
+
+                    ind_dif     = round(ind_liq - s_csv_ind, 2)
+                    ind_status  = "Ok" if abs(ind_dif) <= self.TOLERANCIA else "Divergente"
                     resultado.append({
                         "loc": loc,
                         "pax": str(rec.get("pax", "")).strip(),
-                        "status": status,
-                        f"liq_{lbl1}": ind_liq  if ext1 == ".xlsx" else s_csv_prop,
-                        f"liq_{lbl2}": s_csv_prop if ext1 == ".xlsx" else ind_liq,
+                        "status": ind_status,
+                        f"liq_{lbl1}": ind_liq   if ext1 == ".xlsx" else s_csv_ind,
+                        f"liq_{lbl2}": s_csv_ind if ext1 == ".xlsx" else ind_liq,
                         "dif": ind_dif,
-                        "origem_dif": origem_dif,
-                        "origem_dif_detalhe": origem_dif_detalhe,
+                        "origem_dif": origem_dif if ind_status == "Divergente" else "",
+                        "origem_dif_detalhe": origem_dif_detalhe if ind_status == "Divergente" else "",
                         "over_agencia": ind_over,
-                        "incentivo_fornecedor": round(incentivo_csv / n, 2),
-                        "over_dif": round(ind_over - incentivo_csv / n, 2),
-                        "tarifa_fornecedor": round(tarifa_forn / n, 2),
-                        "tarifa_dif": round(ind_tar - tarifa_forn / n, 2),
-                        "taxa_fornecedor": round(taxa_forn / n, 2),
-                        "taxa_dif": round(ind_tax - taxa_forn / n, 2),
+                        "incentivo_fornecedor": inc_ind,
+                        "over_dif": round(ind_over - inc_ind, 2),
+                        "tarifa_fornecedor": tar_forn_ind,
+                        "tarifa_dif": round(ind_tar - tar_forn_ind, 2),
+                        "taxa_fornecedor": tax_forn_ind,
+                        "taxa_dif": round(ind_tax - tax_forn_ind, 2),
                         "forma_pgt": forma_pgt,
                         "venda":    str(rec.get("Venda Nº", "")).strip(),
                         "cliente":  str(rec.get("Cod. Cliente", "")).strip(),
