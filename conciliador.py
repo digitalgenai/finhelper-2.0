@@ -394,17 +394,18 @@ class Conciliador:
                     "markup":  str(rec.get("Markup", "")).strip(),
                 })
 
-        # INTERFACE detectado em Emissor ou Cliente → sempre Divergente
+        # INTERFACE detectado em Emissor ou Cliente → Divergente (exceto Somente Wintour/Fornecedor)
         for r in resultado:
             e = str(r.get("emissor", "")).strip().upper()
             c = str(r.get("cliente", "")).strip().upper()
             if e == "EINTERFACE" or c == "CINTERFACE":
                 old_status = r["status"]
-                r["status"] = "Divergente"
+                if old_status not in ("Somente Wintour", "Somente Fornecedor"):
+                    r["status"] = "Divergente"
                 # Adicionar EINTERFACE na origem se não tinha outra explicação
                 origem = r.get("origem_dif", "")
                 if not origem or "ausente" in origem:
-                    r["origem_dif"] = "EINTERFACE" + (f" ({old_status})" if old_status != "Divergente" else "")
+                    r["origem_dif"] = "EINTERFACE" + (f" ({old_status})" if old_status not in ("Divergente", "Somente Wintour", "Somente Fornecedor") else "")
 
         return resultado
 
