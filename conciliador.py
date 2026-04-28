@@ -275,16 +275,35 @@ class Conciliador:
             n = len(xlsx_group)
 
             if n > 1:
-                s_csv = s2 if ext1 == ".xlsx" else s1
+                s_csv    = s2 if ext1 == ".xlsx" else s1
                 csv_recs = list(get_csv_recs(loc))
 
-                # Tenta parear por pax; fallback proporcional
-                csv_by_pax = {}
-                for cr in csv_recs:
+                # 1ª passagem: pareia por nome exato do pax
+                matched_csv = [False] * len(csv_recs)
+                csv_idx_by_pax = {}
+                for i, cr in enumerate(csv_recs):
                     pax_key = str(cr.get("pax", "")).strip().upper()
-                    csv_by_pax.setdefault(pax_key, []).append(cr)
+                    csv_idx_by_pax.setdefault(pax_key, []).append(i)
 
+                xlsx_pairs = []
                 for rec in xlsx_group:
+                    xlsx_pax = str(rec.get("pax", "")).strip().upper()
+                    indices  = csv_idx_by_pax.get(xlsx_pax, [])
+                    if indices:
+                        idx = indices.pop(0)
+                        matched_csv[idx] = True
+                        xlsx_pairs.append((rec, csv_recs[idx]))
+                    else:
+                        xlsx_pairs.append((rec, None))
+
+                # 2ª passagem: registros CNF não casados → pareia por posição
+                remaining_csv = iter(cr for i, cr in enumerate(csv_recs) if not matched_csv[i])
+                xlsx_pairs = [
+                    (rec, cr if cr is not None else next(remaining_csv, None))
+                    for rec, cr in xlsx_pairs
+                ]
+
+                for rec, cr in xlsx_pairs:
                     ind_liq  = round(rec["liquido"], 2)
                     ind_over = safe_float(rec.get("Over Agência", ""))
                     ind_tar  = safe_float(rec.get("Total Tarifa", ""))
@@ -292,11 +311,8 @@ class Conciliador:
                     form     = str(rec.get("Form", "")).strip()
                     nr_doc   = str(rec.get("Nr. Doc", "")).strip()
 
-                    xlsx_pax = str(rec.get("pax", "")).strip().upper()
-                    matches  = csv_by_pax.get(xlsx_pax, [])
-                    if matches:
-                        cr          = matches.pop(0)
-                        s_csv_ind   = round(cr["liquido"], 2)
+                    if cr is not None:
+                        s_csv_ind    = round(cr["liquido"], 2)
                         tar_forn_ind = round(self.moeda_br(cr.get("Tarifa R$", "") or cr.get("tarifa_brl", "")), 2)
                         tax_forn_ind = round(self.moeda_br(cr.get("Taxa", "") or cr.get("tx_emb", "")), 2)
                         inc_ind      = round(self.moeda_br(cr.get("Incentivo", "") or cr.get("incentivo", "")), 2)
