@@ -140,13 +140,14 @@ function renderResumo(resumo) {
     document.getElementById('valLocs2').textContent = resumo.locs_2;
     document.getElementById('valOk').textContent = resumo.ok;
     document.getElementById('valDiv').textContent = resumo.divergentes;
+    document.getElementById('valConf').textContent = resumo.conferidos || 0;
     document.getElementById('valSomF').textContent = resumo.somente_fornecedor;
-    const total = (resumo.ok || 0) + (resumo.divergentes || 0) + (resumo.somente_fornecedor || 0) + (resumo.somente_wintour || 0);
+    const total = (resumo.ok || 0) + (resumo.divergentes || 0) + (resumo.conferidos || 0) + (resumo.somente_fornecedor || 0) + (resumo.somente_wintour || 0);
     document.getElementById('valTodos').textContent = total;
 }
 
 // ── Tabela ──
-const STATUS_ORDER = { 'Divergente': 0, 'Somente Fornecedor': 1, 'Somente Wintour': 2, 'Ok': 3 };
+const STATUS_ORDER = { 'Divergente': 0, 'Somente Fornecedor': 1, 'Somente Wintour': 2, 'Conferido': 3, 'Ok': 4 };
 
 function renderTabela() {
     // Header
@@ -154,8 +155,8 @@ function renderTabela() {
     const existingColgroup = document.querySelector('#tabelaResultado colgroup');
     if (existingColgroup) existingColgroup.remove();
     const colgroup = document.createElement('colgroup');
-    //  Loc  Pax   Stat  LiqF  LiqS  Dif   OrigDif OverW IncF  DifOv DifT  DifTx Venda Cli   Emis  Mark
-    [9,   5,   5,   7,    5,    5,    5,     6,    5,    5,    5,    5,    5,    5,    5,    5,    6].forEach(w => {
+    // Pax  Cli  Emi  OrigDif  Stat  LiqF  IncF  TarF  TaxE  TaxDU  TaxAdm  Fee  Mark  Loc  LiqW  Venda  Bilhete
+    [8,   5,   5,   8,       6,    6,    5,    5,    5,    5,     5,      5,   5,    6,   6,    5,     6].forEach(w => {
         const col = document.createElement('col');
         col.style.width = w + '%';
         colgroup.appendChild(col);
@@ -165,13 +166,13 @@ function renderTabela() {
     tabelaHead.innerHTML = `
         <th>Passageiro</th><th>Cliente</th><th>Emissor</th>
         <th title="Origem da Diferença">Origem Dif.</th><th>Status</th>
-        <th title="Diferença Tarifa">Dif. Tarifa</th>
-        <th title="Diferença Taxa de Embarque">Dif. Taxa Emb.</th>
         <th title="Liq. ${esc(lbl1)}">Liq. ${esc(lbl1)}</th>
-        <th>Diferença</th>
-        <th title="Over Agência (Wintour)">Over (Win.)</th>
         <th title="Incentivo (Fornecedor)">Incentivo (Forn.)</th>
-        <th title="Diferença Over/Incentivo">Dif. Over</th>
+        <th title="Tarifa do Fornecedor">Tarifa Forn.</th>
+        <th title="Taxa de Embarque Fornecedor">Taxa Emb.</th>
+        <th title="Taxa DU (Flytour)">Taxa DU</th>
+        <th title="Taxa Administrativa de Cartão">Taxa Adm.</th>
+        <th title="Fee (Flytour)">Fee</th>
         <th>Markup</th><th title="Localizador">Loc.</th>
         <th title="Liq. ${esc(lbl2)}">Liq. ${esc(lbl2)}</th>
         <th title="Número Venda">Nº Venda</th>
@@ -198,15 +199,6 @@ function renderTabela() {
         const v2 = r[`liq_${lbl2}`];
         const liq1 = fmt(v1);
         const liq2 = fmt(v2);
-        const dif = fmt(r.dif);
-
-        // Classe da célula de diferença
-        const numDif = parseFloat(r.dif) || 0;
-        let difClass = '';
-        if (r.status === 'Divergente') difClass = 'cel-dif-positiva';
-        else if (numDif > 0) difClass = 'cel-dif-positiva';
-        else if (numDif < 0) difClass = 'cel-dif-negativa';
-        else if (r.status === 'Ok') difClass = 'cel-dif-zero';
 
         // Origem da diferença vem do backend (comparação campo a campo)
         const origemDif = r.origem_dif || '';
@@ -232,42 +224,25 @@ function renderTabela() {
             }
         }
 
-        const overWin  = fmt(r.over_agencia);
-        const incForn  = fmt(r.incentivo_fornecedor);
-        const difOver  = fmt(r.over_dif);
-
-        // Classe da célula Dif. Over
-        const numOver = parseFloat(r.over_dif) || 0;
-        const overOk = (r.over_agencia !== '' || r.incentivo_fornecedor !== '') && Math.abs(numOver) <= 0.01;
-        const difOverClass = (r.over_agencia !== '' || r.incentivo_fornecedor !== '')
-            ? (overOk ? 'cel-dif-zero' : (numOver > 0 ? 'cel-dif-positiva' : 'cel-dif-negativa'))
-            : '';
-
-        const difTar  = fmt(r.tarifa_dif);
-        const numTar  = parseFloat(r.tarifa_dif) || 0;
-        const difTarClass = r.tarifa_dif !== ''
-            ? (Math.abs(numTar) <= 0.01 ? 'cel-dif-zero' : (numTar > 0 ? 'cel-dif-positiva' : 'cel-dif-negativa'))
-            : '';
-
-        const difTax  = fmt(r.taxa_dif);
-        const numTax  = parseFloat(r.taxa_dif) || 0;
-        const difTaxClass = r.taxa_dif !== ''
-            ? (Math.abs(numTax) <= 0.01 ? 'cel-dif-zero' : (numTax > 0 ? 'cel-dif-positiva' : 'cel-dif-negativa'))
-            : '';
-
+        const incForn    = fmt(r.incentivo_fornecedor);
+        const tarifaForn = fmt(r.tarifa_fornecedor);
+        const taxaEmb    = fmt(r.taxa_fornecedor);
+        const taxaDU     = fmt(r.du_forn);
+        const taxaAdm    = fmt(r.taxa_adm_forn);
+        const fee        = fmt(r.fee_forn);
         tr.innerHTML = `
             <td title="${esc(r.pax)}">${esc(r.pax)}</td>
             <td title="${esc(r.cliente || '')}">${esc(r.cliente || '')}</td>
             <td title="${esc(r.emissor || '')}">${esc(r.emissor || '')}</td>
             <td title="${esc(origemDetalhe)}" class="${origemDif ? 'cel-origem-dif' : ''}">${esc(origemDif) || '—'}</td>
             <td>${badgeStatus(r.status)}</td>
-            <td title="${difTar}" class="${difTarClass}">${difTar}</td>
-            <td title="${difTax}" class="${difTaxClass}">${difTax}</td>
             <td title="${liq1}" class="${liq1Class}">${liq1}</td>
-            <td title="${dif}" class="${difClass}">${dif}</td>
-            <td title="${overWin}">${overWin}</td>
             <td title="${incForn}">${incForn}</td>
-            <td title="${difOver}" class="${difOverClass}">${difOver}</td>
+            <td title="${tarifaForn}">${tarifaForn}</td>
+            <td title="${taxaEmb}">${taxaEmb}</td>
+            <td title="${taxaDU}">${taxaDU}</td>
+            <td title="${taxaAdm}">${taxaAdm}</td>
+            <td title="${fee}">${fee}</td>
             <td title="${esc(r.markup || '')}">${esc(r.markup || '')}</td>
             <td title="${esc(r.loc)}"><strong>${esc(r.loc)}</strong></td>
             <td title="${liq2}" class="${liq2Class}">${liq2}</td>
@@ -282,6 +257,7 @@ function badgeStatus(status) {
     const map = {
         'Ok': 'badge-ok',
         'Divergente': 'badge-divergente',
+        'Conferido': 'badge-conferido',
         'Somente Fornecedor': 'badge-somente-f',
         'Somente Wintour': 'badge-somente-w',
     };

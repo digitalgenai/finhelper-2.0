@@ -40,7 +40,7 @@ class Conciliador:
 
     @staticmethod
     def rotulo(ext: str) -> str:
-        return "Sistema Wintour" if ext == ".xlsx" else "Fornecedor"
+        return "Wintour" if ext == ".xlsx" else "Fornecedor"
 
     # ── Leitura ──
 
@@ -79,7 +79,8 @@ class Conciliador:
 
     # Colunas extras do CSV/CNF que precisamos para comparação campo a campo
     CSV_EXTRAS = ["Tarifa R$", "Taxa", "TxDU", "Incentivo",
-                  "tarifa_brl", "tx_emb", "repasse_du", "incentivo", "comissao", "acrescimos"]
+                  "tarifa_brl", "tx_emb", "repasse_du", "incentivo", "comissao", "acrescimos",
+                  "fee", "Fee"]
 
     def agrupar(self, df: pd.DataFrame, ext: str) -> dict:
         """Agrupa registros por localizador."""
@@ -98,8 +99,7 @@ class Conciliador:
                 if forma_pgt == "XX":
                     continue
                 cod_status = str(r.get("Cód. Status", "")).strip().upper()
-                if cod_status == "CF":
-                    continue
+                item["is_cf"] = cod_status == "CF"
                 for c in self.XLSX_EXTRAS:
                     item[c] = str(r.get(c, "")).strip() if pd.notna(r.get(c)) else ""
             elif ext in (".csv", ".cnf"):
@@ -126,6 +126,8 @@ class Conciliador:
             "over_agencia": r.get("Over Agência", ""),
             "forma_pgt": r.get("Forma Pgt.", ""),
             "bilhete": form + nr_doc,
+            "du_rav": r.get("Total DU/RAV (Bruta)", ""),
+            "outras_taxas": r.get("Total Outras Taxas", ""),
         }
 
     # ── Comparação campo a campo ──
@@ -225,6 +227,10 @@ class Conciliador:
             over_agencia = safe_float(extras.get("over_agencia", 0))
             forma_pgt = str(extras.get("forma_pgt", "")).strip().upper()
 
+            # CF (Conferido): venda revisada manualmente no Wintour
+            xlsx_group = g1[loc] if ext1 == ".xlsx" else g2[loc]
+            is_cf = any(r.get("is_cf", False) for r in xlsx_group)
+
             # Esperado depende da forma de pagamento:
             # IV → tarifa + taxas são repassados pelo fornecedor, incluir na fórmula
             # Outros (cartão etc.) → desconsiderar tarifa + taxas
@@ -255,12 +261,35 @@ class Conciliador:
             )
             taxa_dif = round(taxas - taxa_forn, 2)
 
-            status = "Ok" if abs(dif) < self.TOLERANCIA else "Divergente"
+            # Taxa Adm. Cartão: acrescimos do CSV/CNF (Flytour)
+            taxa_adm_forn = round(
+                sum(self.moeda_br(r.get("acrescimos", ""))
+                    for r in get_csv_recs(loc)), 2
+            )
+
+            # Taxa DU: TxDU / repasse_du do CSV/CNF (Flytour)
+            du_forn = round(
+                sum(self.moeda_br(r.get("TxDU", "") or r.get("repasse_du", ""))
+                    for r in get_csv_recs(loc)), 2
+            )
+
+            # Fee: coluna fee do CSV/CNF (Flytour)
+            fee_forn = round(
+                sum(self.moeda_br(r.get("fee", "") or r.get("Fee", ""))
+                    for r in get_csv_recs(loc)), 2
+            )
+
+            if is_cf:
+                status = "Conferido"
+            elif abs(dif) < self.TOLERANCIA:
+                status = "Ok"
+            else:
+                status = "Divergente"
 
             # Comparação campo a campo para identificar origem da divergência
             origem_dif = ""
             origem_dif_detalhe = ""
-            if status == "Divergente":
+            if status in ("Divergente", "Conferido") and abs(dif) >= self.TOLERANCIA:
                 # Determinar qual grupo é CSV e qual é XLSX
                 comp = {"resumo": "", "detalhe": ""}
                 if ext1 in (".csv", ".cnf") and ext2 == ".xlsx":
@@ -271,7 +300,6 @@ class Conciliador:
                 origem_dif_detalhe = comp["detalhe"]
 
             # Multi-pax: expande em uma linha por Venda Nº do XLSX
-            xlsx_group = g1[loc] if ext1 == ".xlsx" else g2[loc]
             n = len(xlsx_group)
 
             if n > 1:
@@ -310,20 +338,34 @@ class Conciliador:
                     ind_tax  = safe_float(rec.get("Total Taxas", ""))
                     form     = str(rec.get("Form", "")).strip()
                     nr_doc   = str(rec.get("Nr. Doc", "")).strip()
+                    rec_is_cf = rec.get("is_cf", False)
 
                     if cr is not None:
                         s_csv_ind    = round(cr["liquido"], 2)
                         tar_forn_ind = round(self.moeda_br(cr.get("Tarifa R$", "") or cr.get("tarifa_brl", "")), 2)
                         tax_forn_ind = round(self.moeda_br(cr.get("Taxa", "") or cr.get("tx_emb", "")), 2)
                         inc_ind      = round(self.moeda_br(cr.get("Incentivo", "") or cr.get("incentivo", "")), 2)
+                        taxa_adm_ind = round(self.moeda_br(cr.get("acrescimos", "")), 2)
+                        du_ind       = round(self.moeda_br(cr.get("TxDU", "") or cr.get("repasse_du", "")), 2)
+                        fee_ind      = round(self.moeda_br(cr.get("fee", "") or cr.get("Fee", "")), 2)
                     else:
                         s_csv_ind    = round(s_csv / n, 2)
                         tar_forn_ind = round(tarifa_forn / n, 2)
                         tax_forn_ind = round(taxa_forn / n, 2)
                         inc_ind      = round(incentivo_csv / n, 2)
+                        taxa_adm_ind = round(taxa_adm_forn / n, 2)
+                        du_ind       = round(du_forn / n, 2)
+                        fee_ind      = round(fee_forn / n, 2)
 
-                    ind_dif     = round(ind_liq - s_csv_ind, 2)
-                    ind_status  = "Ok" if abs(ind_dif) <= self.TOLERANCIA else "Divergente"
+                    ind_dif = round(ind_liq - s_csv_ind, 2)
+                    if rec_is_cf:
+                        ind_status = "Conferido"
+                    elif abs(ind_dif) <= self.TOLERANCIA:
+                        ind_status = "Ok"
+                    else:
+                        ind_status = "Divergente"
+
+                    show_origem = ind_status in ("Divergente", "Conferido") and abs(ind_dif) > self.TOLERANCIA
                     resultado.append({
                         "loc": loc,
                         "pax": str(rec.get("pax", "")).strip(),
@@ -331,8 +373,8 @@ class Conciliador:
                         f"liq_{lbl1}": ind_liq   if ext1 == ".xlsx" else s_csv_ind,
                         f"liq_{lbl2}": s_csv_ind if ext1 == ".xlsx" else ind_liq,
                         "dif": ind_dif,
-                        "origem_dif": origem_dif if ind_status == "Divergente" else "",
-                        "origem_dif_detalhe": origem_dif_detalhe if ind_status == "Divergente" else "",
+                        "origem_dif": origem_dif if show_origem else "",
+                        "origem_dif_detalhe": origem_dif_detalhe if show_origem else "",
                         "over_agencia": ind_over,
                         "incentivo_fornecedor": inc_ind,
                         "over_dif": round(ind_over - inc_ind, 2),
@@ -340,12 +382,17 @@ class Conciliador:
                         "tarifa_dif": round(ind_tar - tar_forn_ind, 2),
                         "taxa_fornecedor": tax_forn_ind,
                         "taxa_dif": round(ind_tax - tax_forn_ind, 2),
+                        "taxa_adm_forn": taxa_adm_ind,
+                        "du_forn": du_ind,
+                        "fee_forn": fee_ind,
                         "forma_pgt": forma_pgt,
                         "venda":    str(rec.get("Venda Nº", "")).strip(),
                         "cliente":  str(rec.get("Cod. Cliente", "")).strip(),
                         "emissor":  str(rec.get("Cod. Emissor", "")).strip(),
                         "markup":   str(rec.get("Markup", "")).strip(),
                         "bilhete":  form + nr_doc,
+                        "du_rav":   str(rec.get("Total DU/RAV (Bruta)", "")).strip(),
+                        "outras_taxas": str(rec.get("Total Outras Taxas", "")).strip(),
                     })
             else:
                 resultado.append({
@@ -360,13 +407,17 @@ class Conciliador:
                     "tarifa_dif": tarifa_dif,
                     "taxa_fornecedor": taxa_forn,
                     "taxa_dif": taxa_dif,
+                    "taxa_adm_forn": taxa_adm_forn,
+                    "du_forn": du_forn,
+                    "fee_forn": fee_forn,
                     "forma_pgt": forma_pgt,
                     **extras,
                 })
 
         _over_defaults = {"over_agencia": "", "incentivo_fornecedor": "", "over_dif": "",
                           "tarifa_fornecedor": "", "tarifa_dif": "",
-                          "taxa_fornecedor": "", "taxa_dif": "", "forma_pgt": "", "bilhete": ""}
+                          "taxa_fornecedor": "", "taxa_dif": "", "forma_pgt": "", "bilhete": "",
+                          "du_rav": "", "outras_taxas": "", "taxa_adm_forn": "", "du_forn": "", "fee_forn": ""}
 
         # Somente no grupo 1
         for loc in sorted(locs1 - locs2):
@@ -416,7 +467,7 @@ class Conciliador:
             c = str(r.get("cliente", "")).strip().upper()
             if e == "EINTERFACE" or c == "CINTERFACE":
                 old_status = r["status"]
-                if old_status not in ("Somente Wintour", "Somente Fornecedor"):
+                if old_status not in ("Somente Wintour", "Somente Fornecedor", "Conferido"):
                     r["status"] = "Divergente"
                 # Adicionar EINTERFACE na origem se não tinha outra explicação
                 origem = r.get("origem_dif", "")
@@ -435,19 +486,19 @@ class Conciliador:
                 "Passageiro": r["pax"],
                 "Cliente": r.get("cliente", ""),
                 "Emissor": r.get("emissor", ""),
-                "Campo Divergente": r.get("origem_dif", ""),
+                "Origem Dif.": r.get("origem_dif", ""),
                 "Detalhe da Diferença": r.get("origem_dif_detalhe", ""),
                 "Status": r["status"],
-                "Dif. Tarifa": r.get("tarifa_dif", ""),
-                "Dif. Taxa Emb.": r.get("taxa_dif", ""),
                 f"Liq. {lbl1}": r.get(f"liq_{lbl1}", ""),
-                "Diferenca": r.get("dif", ""),
-                "Over Agência (Wintour)": r.get("over_agencia", ""),
                 "Incentivo (Fornecedor)": r.get("incentivo_fornecedor", ""),
-                "Dif. Over": r.get("over_dif", ""),
+                "Tarifa Fornecedor": r.get("tarifa_fornecedor", ""),
+                "Taxa Embarque": r.get("taxa_fornecedor", ""),
+                "Taxa DU": r.get("du_forn", ""),
+                "Taxa Adm. Cartão": r.get("taxa_adm_forn", ""),
+                "Fee": r.get("fee_forn", ""),
                 "Markup": r.get("markup", ""),
                 "Localizador": r["loc"],
-                f"Liq. {lbl2}": r.get(f"liq_{lbl2}", ""),
+                "Líquido Wintour": r.get(f"liq_{lbl2}", ""),
                 "Nº Venda": r.get("venda", ""),
                 "Nº Bilhete": r.get("bilhete", ""),
             })
@@ -482,6 +533,7 @@ class Conciliador:
             "locs_2": len(g2),
             "ok": sum(1 for r in resultado if r["status"] == "Ok"),
             "divergentes": sum(1 for r in resultado if r["status"] == "Divergente"),
+            "conferidos": sum(1 for r in resultado if r["status"] == "Conferido"),
             "somente_fornecedor": sum(1 for r in resultado if r["status"] == "Somente Fornecedor"),
             "somente_wintour": sum(1 for r in resultado if r["status"] == "Somente Wintour"),
         }

@@ -16,8 +16,8 @@
     --vermelho: #EF4444;
 
     /* Neutros */
-    --bg: #F5F5F6;
-    --card-bg: #FFFFFF;
+    --bg: #E8E9EC;
+    --card-bg: #F3F4F6;
     --text: #1A1A2E;
     --text-muted: #6B7280;
     --border: #E5E7EB;
@@ -29,7 +29,7 @@
 }
 
 html, body { height: 100%; overflow: hidden; }
-html { font-size: 14px; }
+html { font-size: 15px; }
 body {
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     background: var(--bg);
@@ -180,56 +180,125 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Resumo ── */
+
+/* Faixa de metadados: contagem dos arquivos */
 .resumo-info-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    margin-bottom: 12px;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
 }
+.resumo-info-row .resumo-card {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-left: 3px solid var(--cinza);
+}
+.resumo-info-row .resumo-card:first-child { border-left-color: var(--ciano-dark); }
+.resumo-info-row .resumo-card:last-child  { border-left-color: var(--roxo-light); }
+
+/* Grade de filtros: 5 colunas, sem órfão */
 .resumo-btn-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
 }
+
+/* Card base */
 .resumo-card {
-    padding: 14px 16px; border-radius: 8px;
+    padding: 13px 15px;
+    border-radius: 8px;
     border-left: 4px solid var(--cinza);
     background: var(--bg);
 }
-.resumo-card .resumo-label { display: block; font-size: 0.8rem; color: var(--text-muted); }
-.resumo-card .resumo-value { display: block; font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+.resumo-card .resumo-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.resumo-card .resumo-value {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-top: 3px;
+    line-height: 1;
+}
 
+/* Card-botão interativo */
 .resumo-card-btn {
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    transition: transform 0.15s, box-shadow 0.15s;
     user-select: none;
 }
-.resumo-card-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.resumo-card-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(0,0,0,.09);
+}
 .resumo-card-btn:active { transform: translateY(0); }
+
+/* ── Estados ativos: fundo colorido + borda topo + sombra ── */
+.resumo-card-btn { border-top: 3px solid transparent; }
 
 .resumo-ok { border-left-color: var(--verde); }
 .resumo-ok .resumo-value { color: var(--verde); }
-.resumo-ok.active { background: var(--verde); border-left-color: var(--verde); }
-.resumo-ok.active .resumo-label,
-.resumo-ok.active .resumo-value { color: #fff; }
+.resumo-ok.active {
+    background: rgba(34,197,94,0.18);
+    border-left-color: var(--verde);
+    border-top-color: var(--verde);
+    box-shadow: 0 4px 16px rgba(34,197,94,0.25);
+}
+.resumo-ok.active .resumo-label { color: #15803D; font-weight: 600; }
+.resumo-ok.active .resumo-value { color: #16A34A; }
 
 .resumo-divergente { border-left-color: var(--vermelho); }
 .resumo-divergente .resumo-value { color: var(--vermelho); }
-.resumo-divergente.active { background: var(--vermelho); border-left-color: var(--vermelho); }
-.resumo-divergente.active .resumo-label,
-.resumo-divergente.active .resumo-value { color: #fff; }
+.resumo-divergente.active {
+    background: rgba(239,68,68,0.16);
+    border-left-color: var(--vermelho);
+    border-top-color: var(--vermelho);
+    box-shadow: 0 4px 16px rgba(239,68,68,0.22);
+}
+.resumo-divergente.active .resumo-label { color: #B91C1C; font-weight: 600; }
+.resumo-divergente.active .resumo-value { color: #DC2626; }
+
+.resumo-conferido { border-left-color: #7C3AED; }
+.resumo-conferido .resumo-value { color: #7C3AED; }
+.resumo-conferido.active {
+    background: rgba(124,58,237,0.16);
+    border-left-color: #7C3AED;
+    border-top-color: #7C3AED;
+    box-shadow: 0 4px 16px rgba(124,58,237,0.22);
+}
+.resumo-conferido.active .resumo-label { color: #5B21B6; font-weight: 600; }
+.resumo-conferido.active .resumo-value { color: #7C3AED; }
 
 .resumo-somente-f { border-left-color: var(--amarelo); }
 .resumo-somente-f .resumo-value { color: var(--amarelo); }
-.resumo-somente-f.active { background: var(--amarelo); border-left-color: var(--amarelo); }
-.resumo-somente-f.active .resumo-label,
-.resumo-somente-f.active .resumo-value { color: var(--text); }
+.resumo-somente-f.active {
+    background: rgba(234,179,8,0.18);
+    border-left-color: var(--amarelo);
+    border-top-color: var(--amarelo);
+    box-shadow: 0 4px 16px rgba(234,179,8,0.22);
+}
+.resumo-somente-f.active .resumo-label { color: #92400E; font-weight: 600; }
+.resumo-somente-f.active .resumo-value { color: #CA8A04; }
 
 .resumo-todos { border-left-color: var(--cinza); }
 .resumo-todos .resumo-value { color: var(--text); }
-.resumo-todos.active { background: var(--roxo); border-left-color: var(--roxo); }
-.resumo-todos.active .resumo-label,
-.resumo-todos.active .resumo-value { color: #fff; }
+.resumo-todos.active {
+    background: rgba(127,46,194,0.16);
+    border-left-color: var(--roxo);
+    border-top-color: var(--roxo);
+    box-shadow: 0 4px 16px rgba(127,46,194,0.22);
+}
+.resumo-todos.active .resumo-label { color: var(--roxo-dark); font-weight: 600; }
+.resumo-todos.active .resumo-value { color: var(--roxo); }
 
 /* ── Filtros ── */
 .filtros-row {
@@ -301,6 +370,7 @@ body {
 }
 .badge-ok { background: rgba(34,197,94,0.12); color: #16A34A; }
 .badge-divergente { background: rgba(239,68,68,0.12); color: #DC2626; }
+.badge-conferido { background: rgba(124,58,237,0.12); color: #7C3AED; }
 .badge-somente-f { background: rgba(234,179,8,0.12); color: #CA8A04; }
 .badge-somente-w { background: rgba(234,179,8,0.12); color: #CA8A04; }
 .badge-ok-int { background: rgba(34,197,94,0.12); color: #16A34A; }

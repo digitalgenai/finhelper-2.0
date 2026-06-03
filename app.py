@@ -68,6 +68,7 @@ def processar(arquivo1, arquivo2):
         f"- Localizadores {resumo['lbl2']}: {resumo['locs_2']}\n"
         f"- Ok: {resumo['ok']}\n"
         f"- Divergentes: {resumo['divergentes']}\n"
+        f"- Conferidos (CF): {resumo['conferidos']}\n"
         f"- Somente Fornecedor: {resumo['somente_fornecedor']}\n"
         f"- Somente Wintour: {resumo['somente_wintour']}\n"
     )
@@ -111,7 +112,7 @@ def enviar_chat(mensagem, historico, thread_id):
     if not thread_id:
         historico = historico + [
             {"role": "user", "content": mensagem},
-            {"role": "assistant", "content": "⚠️ Processe os arquivos primeiro antes de usar o chat."},
+            {"role": "assistant", "content": "Processe os arquivos primeiro antes de usar o chat."},
         ]
         return historico, "", thread_id
 
@@ -142,7 +143,7 @@ with gr.Blocks(title="FinHelper — Conciliacao Financeira") as app:
     out_resumo = gr.Markdown(label="Resumo")
     out_xlsx = gr.File(label="Baixar Excel")
 
-    gr.Markdown("### 💬 Chat com FinHelper\nPergunte sobre divergências, localizadores ou qualquer detalhe da conciliação.")
+    gr.Markdown("### Chat com FinHelper\nPergunte sobre divergências, localizadores ou qualquer detalhe da conciliação.")
     chatbot = gr.Chatbot(label="FinHelper", height=350)
     with gr.Row():
         chat_input = gr.Textbox(
