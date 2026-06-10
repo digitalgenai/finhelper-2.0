@@ -151,12 +151,12 @@ const STATUS_ORDER = { 'Divergente': 0, 'Somente Fornecedor': 1, 'Somente Wintou
 
 function renderTabela() {
     // Header
-    // Colgroup para larguras fixas (total = 100%) – 15 colunas
+    // Colgroup para larguras fixas (total = 100%) – 18 colunas
     const existingColgroup = document.querySelector('#tabelaResultado colgroup');
     if (existingColgroup) existingColgroup.remove();
     const colgroup = document.createElement('colgroup');
-    // Pax  Cli  Emi  OrigDif  Stat  LiqF  IncF  TarF  TaxE  TaxDU  TaxAdm  Fee  Mark  Loc  LiqW  Venda  Bilhete
-    [8,   5,   5,   8,       6,    6,    5,    5,    5,    5,     5,      5,   5,    6,   6,    5,     6].forEach(w => {
+    // Pax  Cli  Emi  OrigDif  Stat  LiqF  LiqW  IncF  TarF  TaxE  TaxDU  TaxAdm  Fee  Mark  Loc  DataEm  Venda  Bilhete
+    [8,   5,   5,   8,       6,    5,    5,    5,    5,    5,    4,     4,      4,   4,    6,   5,      5,     6].forEach(w => {
         const col = document.createElement('col');
         col.style.width = w + '%';
         colgroup.appendChild(col);
@@ -167,6 +167,7 @@ function renderTabela() {
         <th>Passageiro</th><th>Cliente</th><th>Emissor</th>
         <th title="Origem da Diferença">Origem Dif.</th><th>Status</th>
         <th title="Liq. ${esc(lbl1)}">Liq. ${esc(lbl1)}</th>
+        <th title="Liq. ${esc(lbl2)}">Liq. ${esc(lbl2)}</th>
         <th title="Incentivo (Fornecedor)">Incentivo (Forn.)</th>
         <th title="Tarifa do Fornecedor">Tarifa Forn.</th>
         <th title="Taxa de Embarque Fornecedor">Taxa Emb.</th>
@@ -174,7 +175,7 @@ function renderTabela() {
         <th title="Taxa Administrativa de Cartão">Taxa Adm.</th>
         <th title="Fee (Flytour)">Fee</th>
         <th>Markup</th><th title="Localizador">Loc.</th>
-        <th title="Liq. ${esc(lbl2)}">Liq. ${esc(lbl2)}</th>
+        <th title="Data de Emissão">Dt. Emissão</th>
         <th title="Número Venda">Nº Venda</th>
         <th title="Número do Bilhete">Nº Bilhete</th>
     `;
@@ -230,6 +231,7 @@ function renderTabela() {
         const taxaDU     = fmt(r.du_forn);
         const taxaAdm    = fmt(r.taxa_adm_forn);
         const fee        = fmt(r.fee_forn);
+        const dataEmissao = esc(r.data_emissao || '');
         tr.innerHTML = `
             <td title="${esc(r.pax)}">${esc(r.pax)}</td>
             <td title="${esc(r.cliente || '')}">${esc(r.cliente || '')}</td>
@@ -237,6 +239,7 @@ function renderTabela() {
             <td title="${esc(origemDetalhe)}" class="${origemDif ? 'cel-origem-dif' : ''}">${esc(origemDif) || '—'}</td>
             <td>${badgeStatus(r.status)}</td>
             <td title="${liq1}" class="${liq1Class}">${liq1}</td>
+            <td title="${liq2}" class="${liq2Class}">${liq2}</td>
             <td title="${incForn}">${incForn}</td>
             <td title="${tarifaForn}">${tarifaForn}</td>
             <td title="${taxaEmb}">${taxaEmb}</td>
@@ -245,7 +248,7 @@ function renderTabela() {
             <td title="${fee}">${fee}</td>
             <td title="${esc(r.markup || '')}">${esc(r.markup || '')}</td>
             <td title="${esc(r.loc)}"><strong>${esc(r.loc)}</strong></td>
-            <td title="${liq2}" class="${liq2Class}">${liq2}</td>
+            <td title="${dataEmissao}">${dataEmissao || '—'}</td>
             <td title="${esc(r.venda || '')}">${esc(r.venda || '')}</td>
             <td title="${esc(r.bilhete || '')}">${esc(r.bilhete || '')}</td>
         `;

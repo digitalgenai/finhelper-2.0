@@ -16,7 +16,7 @@ class Conciliador:
 
     XLSX_EXTRAS = ["Venda Nº", "Cod. Cliente", "Cod. Emissor", "Markup", "Total Tarifa", "Total Taxas",
                    "Total DU/RAV (Bruta)", "Over Agência", "Total Outras Taxas", "Forma Pgt.",
-                   "Form", "Nr. Doc"]
+                   "Form", "Nr. Doc", "Data Venda"]
 
     # Mapeamento campo a campo: (nome_exibição, colunas_fornecedor, coluna_xlsx)
     # colunas_fornecedor = lista de possíveis nomes (CSV e CNF)
@@ -80,7 +80,7 @@ class Conciliador:
     # Colunas extras do CSV/CNF que precisamos para comparação campo a campo
     CSV_EXTRAS = ["Tarifa R$", "Taxa", "TxDU", "Incentivo",
                   "tarifa_brl", "tx_emb", "repasse_du", "incentivo", "comissao", "acrescimos",
-                  "fee", "Fee"]
+                  "fee", "Fee", "emissao"]
 
     def agrupar(self, df: pd.DataFrame, ext: str) -> dict:
         """Agrupa registros por localizador."""
@@ -128,6 +128,7 @@ class Conciliador:
             "bilhete": form + nr_doc,
             "du_rav": r.get("Total DU/RAV (Bruta)", ""),
             "outras_taxas": r.get("Total Outras Taxas", ""),
+            "data_emissao": pd.Timestamp(r.get("Data Venda")).strftime("%d/%m/%Y") if pd.notna(r.get("Data Venda")) and r.get("Data Venda") != "" else "",
         }
 
     # ── Comparação campo a campo ──
@@ -393,6 +394,7 @@ class Conciliador:
                         "bilhete":  form + nr_doc,
                         "du_rav":   str(rec.get("Total DU/RAV (Bruta)", "")).strip(),
                         "outras_taxas": str(rec.get("Total Outras Taxas", "")).strip(),
+                        "data_emissao": pd.Timestamp(rec.get("Data Venda")).strftime("%d/%m/%Y") if pd.notna(rec.get("Data Venda")) and rec.get("Data Venda") != "" else "",
                     })
             else:
                 resultado.append({
@@ -417,7 +419,8 @@ class Conciliador:
         _over_defaults = {"over_agencia": "", "incentivo_fornecedor": "", "over_dif": "",
                           "tarifa_fornecedor": "", "tarifa_dif": "",
                           "taxa_fornecedor": "", "taxa_dif": "", "forma_pgt": "", "bilhete": "",
-                          "du_rav": "", "outras_taxas": "", "taxa_adm_forn": "", "du_forn": "", "fee_forn": ""}
+                          "du_rav": "", "outras_taxas": "", "taxa_adm_forn": "", "du_forn": "", "fee_forn": "",
+                          "data_emissao": ""}
 
         # Somente no grupo 1
         for loc in sorted(locs1 - locs2):
@@ -428,6 +431,7 @@ class Conciliador:
                 ind_liq = round(rec["liquido"], 2)
                 form    = str(rec.get("Form", "")).strip()
                 nr_doc  = str(rec.get("Nr. Doc", "")).strip()
+                data_em = str(rec.get("Data Venda", "") or rec.get("emissao", "")).strip()
                 resultado.append({
                     "loc": loc, "pax": str(rec.get("pax", "")).strip(), "status": status,
                     f"liq_{lbl1}": ind_liq, f"liq_{lbl2}": "", "dif": "",
@@ -438,6 +442,7 @@ class Conciliador:
                     "cliente": str(rec.get("Cod. Cliente", "")).strip(),
                     "emissor": str(rec.get("Cod. Emissor", "")).strip(),
                     "markup":  str(rec.get("Markup", "")).strip(),
+                    "data_emissao": data_em,
                 })
 
         # Somente no grupo 2
@@ -449,6 +454,7 @@ class Conciliador:
                 ind_liq = round(rec["liquido"], 2)
                 form    = str(rec.get("Form", "")).strip()
                 nr_doc  = str(rec.get("Nr. Doc", "")).strip()
+                data_em = str(rec.get("Data Venda", "") or rec.get("emissao", "")).strip()
                 resultado.append({
                     "loc": loc, "pax": str(rec.get("pax", "")).strip(), "status": status,
                     f"liq_{lbl1}": "", f"liq_{lbl2}": ind_liq, "dif": "",
@@ -459,6 +465,7 @@ class Conciliador:
                     "cliente": str(rec.get("Cod. Cliente", "")).strip(),
                     "emissor": str(rec.get("Cod. Emissor", "")).strip(),
                     "markup":  str(rec.get("Markup", "")).strip(),
+                    "data_emissao": data_em,
                 })
 
         # INTERFACE detectado em Emissor ou Cliente → Divergente (exceto Somente Wintour/Fornecedor)
@@ -490,6 +497,7 @@ class Conciliador:
                 "Detalhe da Diferença": r.get("origem_dif_detalhe", ""),
                 "Status": r["status"],
                 f"Liq. {lbl1}": r.get(f"liq_{lbl1}", ""),
+                "Líquido Wintour": r.get(f"liq_{lbl2}", ""),
                 "Incentivo (Fornecedor)": r.get("incentivo_fornecedor", ""),
                 "Tarifa Fornecedor": r.get("tarifa_fornecedor", ""),
                 "Taxa Embarque": r.get("taxa_fornecedor", ""),
@@ -498,7 +506,7 @@ class Conciliador:
                 "Fee": r.get("fee_forn", ""),
                 "Markup": r.get("markup", ""),
                 "Localizador": r["loc"],
-                "Líquido Wintour": r.get(f"liq_{lbl2}", ""),
+                "Data Emissão": r.get("data_emissao", ""),
                 "Nº Venda": r.get("venda", ""),
                 "Nº Bilhete": r.get("bilhete", ""),
             })
