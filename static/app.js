@@ -134,16 +134,11 @@ btnLimpar.addEventListener('click', () => {
 
 // ── Resumo ──
 function renderResumo(resumo) {
-    document.getElementById('lblLocs1').textContent = resumo.lbl1;
     document.getElementById('valLocs1').textContent = resumo.locs_1;
-    document.getElementById('lblLocs2').textContent = resumo.lbl2;
-    document.getElementById('valLocs2').textContent = resumo.locs_2;
     document.getElementById('valOk').textContent = resumo.ok;
     document.getElementById('valDiv').textContent = resumo.divergentes;
     document.getElementById('valConf').textContent = resumo.conferidos || 0;
     document.getElementById('valSomF').textContent = resumo.somente_fornecedor;
-    const total = (resumo.ok || 0) + (resumo.divergentes || 0) + (resumo.conferidos || 0) + (resumo.somente_fornecedor || 0);
-    document.getElementById('valTodos').textContent = total;
 }
 
 // ── Tabela ──

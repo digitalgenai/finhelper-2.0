@@ -648,16 +648,24 @@ class Conciliador:
         resultado = self.conciliar(g1, g2, lbl1, lbl2, ext1, ext2)
         xlsx_path = self.gerar_xlsx(resultado, lbl1, lbl2)
 
+        # Resumo por localizador único (não por linha/pax)
+        _PIOR = {"Divergente": 0, "Somente Fornecedor": 1, "Conferido": 2, "Ok": 3, "Somente Wintour": 4}
+        status_por_loc = {}
+        for r in resultado:
+            loc = r["loc"]
+            if loc not in status_por_loc or _PIOR.get(r["status"], 9) < _PIOR.get(status_por_loc[loc], 9):
+                status_por_loc[loc] = r["status"]
+
         resumo = {
             "lbl1": lbl1,
             "lbl2": lbl2,
             "locs_1": len(g1),
             "locs_2": len(g2),
-            "ok": sum(1 for r in resultado if r["status"] == "Ok"),
-            "divergentes": sum(1 for r in resultado if r["status"] == "Divergente"),
-            "conferidos": sum(1 for r in resultado if r["status"] == "Conferido"),
-            "somente_fornecedor": sum(1 for r in resultado if r["status"] == "Somente Fornecedor"),
-            "somente_wintour": sum(1 for r in resultado if r["status"] == "Somente Wintour"),
+            "ok":               sum(1 for s in status_por_loc.values() if s == "Ok"),
+            "divergentes":      sum(1 for s in status_por_loc.values() if s == "Divergente"),
+            "conferidos":       sum(1 for s in status_por_loc.values() if s == "Conferido"),
+            "somente_fornecedor": sum(1 for s in status_por_loc.values() if s == "Somente Fornecedor"),
+            "somente_wintour":  sum(1 for s in status_por_loc.values() if s == "Somente Wintour"),
         }
 
         return resumo, resultado, lbl1, lbl2, xlsx_path
