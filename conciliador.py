@@ -359,20 +359,26 @@ class Conciliador:
                         fee_ind      = round(fee_forn / n, 2)
 
                     ind_dif = round(ind_liq - s_csv_ind, 2)
-                    if rec_is_cf:
+                    if cr is None:
+                        # Pax do Wintour sem par no CNF — não pode ser Conferido
+                        ind_status = "Somente Wintour"
+                    elif rec_is_cf:
                         ind_status = "Conferido"
                     elif abs(ind_dif) <= self.TOLERANCIA:
                         ind_status = "Ok"
                     else:
                         ind_status = "Divergente"
 
+                    liq_forn = "" if cr is None else (ind_liq if ext1 == ".xlsx" else s_csv_ind)
+                    liq_win  = ind_liq if ext2 == ".xlsx" else s_csv_ind
+
                     show_origem = ind_status in ("Divergente", "Conferido") and abs(ind_dif) > self.TOLERANCIA
                     resultado.append({
                         "loc": loc,
                         "pax": str(rec.get("pax", "")).strip(),
                         "status": ind_status,
-                        f"liq_{lbl1}": ind_liq   if ext1 == ".xlsx" else s_csv_ind,
-                        f"liq_{lbl2}": s_csv_ind if ext1 == ".xlsx" else ind_liq,
+                        f"liq_{lbl1}": liq_forn,
+                        f"liq_{lbl2}": liq_win,
                         "dif": ind_dif,
                         "origem_dif": origem_dif if show_origem else "",
                         "origem_dif_detalhe": origem_dif_detalhe if show_origem else "",
