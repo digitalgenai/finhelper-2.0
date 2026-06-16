@@ -487,8 +487,13 @@ class Conciliador:
 
     def gerar_xlsx(self, resultado: list, lbl1: str, lbl2: str) -> str:
         """Gera planilha Excel com o resultado da conciliação e retorna o caminho."""
+        _STATUS_ORDEM = {"Divergente": 0, "Ok": 1, "Somente Fornecedor": 2, "Conferido": 3}
+
+        registros = [r for r in resultado if r["status"] != "Somente Wintour"]
+        registros.sort(key=lambda r: _STATUS_ORDEM.get(r["status"], 99))
+
         rows = []
-        for r in resultado:
+        for r in registros:
             rows.append({
                 "Passageiro": r["pax"],
                 "Cliente": r.get("cliente", ""),
@@ -497,7 +502,6 @@ class Conciliador:
                 "Detalhe da Diferença": r.get("origem_dif_detalhe", ""),
                 "Status": r["status"],
                 f"Liq. {lbl1}": r.get(f"liq_{lbl1}", ""),
-                "Líquido Wintour": r.get(f"liq_{lbl2}", ""),
                 "Incentivo (Fornecedor)": r.get("incentivo_fornecedor", ""),
                 "Tarifa Fornecedor": r.get("tarifa_fornecedor", ""),
                 "Taxa Embarque": r.get("taxa_fornecedor", ""),

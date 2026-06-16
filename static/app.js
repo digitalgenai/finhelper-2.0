@@ -142,7 +142,7 @@ function renderResumo(resumo) {
     document.getElementById('valDiv').textContent = resumo.divergentes;
     document.getElementById('valConf').textContent = resumo.conferidos || 0;
     document.getElementById('valSomF').textContent = resumo.somente_fornecedor;
-    const total = (resumo.ok || 0) + (resumo.divergentes || 0) + (resumo.conferidos || 0) + (resumo.somente_fornecedor || 0) + (resumo.somente_wintour || 0);
+    const total = (resumo.ok || 0) + (resumo.divergentes || 0) + (resumo.conferidos || 0) + (resumo.somente_fornecedor || 0);
     document.getElementById('valTodos').textContent = total;
 }
 
@@ -187,9 +187,9 @@ function renderTabela() {
         return oa - ob;
     });
 
-    // Filter
+    // Filter — Somente Wintour nunca é exibido
     const filtered = filtroAtual === 'todos'
-        ? sorted
+        ? sorted.filter(r => r.status !== 'Somente Wintour')
         : sorted.filter(r => r.status === filtroAtual);
 
     // Render
