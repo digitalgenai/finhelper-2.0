@@ -486,38 +486,142 @@ class Conciliador:
     # ── Geração XLSX ──
 
     def gerar_xlsx(self, resultado: list, lbl1: str, lbl2: str) -> str:
-        """Gera planilha Excel com o resultado da conciliação e retorna o caminho."""
-        _STATUS_ORDEM = {"Divergente": 0, "Ok": 1, "Somente Fornecedor": 2, "Conferido": 3}
+        """Gera planilha Excel estilizada com identidade visual Wee Travel."""
+        from openpyxl import Workbook
+        from openpyxl.styles import PatternFill, Font, Alignment
+        from openpyxl.utils import get_column_letter
+        from collections import Counter
 
+        _STATUS_ORDEM = {"Divergente": 0, "Ok": 1, "Somente Fornecedor": 2, "Conferido": 3}
         registros = [r for r in resultado if r["status"] != "Somente Wintour"]
         registros.sort(key=lambda r: _STATUS_ORDEM.get(r["status"], 99))
 
-        rows = []
-        for r in registros:
-            rows.append({
-                "Passageiro": r["pax"],
-                "Cliente": r.get("cliente", ""),
-                "Emissor": r.get("emissor", ""),
-                "Origem Dif.": r.get("origem_dif", ""),
-                "Detalhe da Diferença": r.get("origem_dif_detalhe", ""),
-                "Status": r["status"],
-                f"Liq. {lbl1}": r.get(f"liq_{lbl1}", ""),
-                "Incentivo (Fornecedor)": r.get("incentivo_fornecedor", ""),
-                "Tarifa Fornecedor": r.get("tarifa_fornecedor", ""),
-                "Taxa Embarque": r.get("taxa_fornecedor", ""),
-                "Taxa DU": r.get("du_forn", ""),
-                "Taxa Adm. Cartão": r.get("taxa_adm_forn", ""),
-                "Fee": r.get("fee_forn", ""),
-                "Markup": r.get("markup", ""),
-                "Localizador": r["loc"],
-                "Data Emissão": r.get("data_emissao", ""),
-                "Nº Venda": r.get("venda", ""),
-                "Nº Bilhete": r.get("bilhete", ""),
-            })
+        # ── Paleta Wee Travel ──
+        COR_HEADER     = "7F2EC2"   # roxo
+        COR_RESUMO_BG  = "F3E8FF"   # roxo bem claro
+        COR_RESUMO_TTL = "5B21B6"   # roxo escuro
 
-        df = pd.DataFrame(rows)
+        STATUS_FILL = {
+            "Divergente":          "FEE2E2",  # vermelho claro
+            "Ok":                  "DCFCE7",  # verde claro
+            "Somente Fornecedor":  "CFFAFE",  # ciano claro
+            "Conferido":           "EDE9FE",  # lilás
+        }
+
+        col_names = [
+            "Passageiro", "Cliente", "Emissor", "Origem Dif.", "Detalhe da Diferença",
+            "Status", f"Liq. {lbl1}", "Incentivo (Fornecedor)", "Tarifa Fornecedor",
+            "Taxa Embarque", "Taxa DU", "Taxa Adm. Cartão", "Fee", "Markup",
+            "Localizador", "Data Emissão", "Nº Venda", "Nº Bilhete",
+        ]
+        COLS_NUMERICAS = {7, 8, 9, 10, 11, 12, 13}   # 1-based: colunas de valor
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Conciliação"
+
+        # ── Cabeçalho ──
+        hdr_fill  = PatternFill(start_color=COR_HEADER, end_color=COR_HEADER, fill_type="solid")
+        hdr_font  = Font(bold=True, color="FFFFFF", name="Calibri", size=10)
+        hdr_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        ws.append(col_names)
+        for cell in ws[1]:
+            cell.fill = hdr_fill
+            cell.font = hdr_font
+            cell.alignment = hdr_align
+        ws.row_dimensions[1].height = 32
+        ws.freeze_panes = "A2"
+        ws.auto_filter.ref = f"A1:{get_column_letter(len(col_names))}1"
+
+        # ── Dados ──
+        fnt_data   = Font(name="Calibri", size=10)
+        aln_center = Alignment(horizontal="center", vertical="center")
+        aln_left   = Alignment(horizontal="left",   vertical="center")
+
+        def _num(v):
+            if isinstance(v, (int, float)):
+                return round(float(v), 2)
+            try:
+                return round(float(str(v).replace(",", ".")), 2)
+            except (ValueError, TypeError):
+                return ""
+
+        for r in registros:
+            row_data = [
+                r["pax"],
+                r.get("cliente", ""),
+                r.get("emissor", ""),
+                r.get("origem_dif", ""),
+                r.get("origem_dif_detalhe", ""),
+                r["status"],
+                _num(r.get(f"liq_{lbl1}", "")),
+                _num(r.get("incentivo_fornecedor", "")),
+                _num(r.get("tarifa_fornecedor", "")),
+                _num(r.get("taxa_fornecedor", "")),
+                _num(r.get("du_forn", "")),
+                _num(r.get("taxa_adm_forn", "")),
+                _num(r.get("fee_forn", "")),
+                r.get("markup", ""),
+                r["loc"],
+                r.get("data_emissao", ""),
+                r.get("venda", ""),
+                r.get("bilhete", ""),
+            ]
+            ws.append(row_data)
+            row_n = ws.max_row
+            fill = PatternFill(start_color=STATUS_FILL.get(r["status"], "FFFFFF"),
+                               end_color=STATUS_FILL.get(r["status"], "FFFFFF"),
+                               fill_type="solid")
+            for i, cell in enumerate(ws[row_n], 1):
+                cell.fill  = fill
+                cell.font  = fnt_data
+                cell.alignment = aln_center if i in COLS_NUMERICAS else aln_left
+                if i in COLS_NUMERICAS and isinstance(cell.value, float):
+                    cell.number_format = '#,##0.00'
+
+        # ── Resumo ──
+        contagem  = Counter(r["status"] for r in registros)
+        total_liq = sum(_num(r.get(f"liq_{lbl1}", 0)) for r in registros
+                        if isinstance(_num(r.get(f"liq_{lbl1}", 0)), float))
+
+        ws.append([""] * len(col_names))
+
+        res_fill  = PatternFill(start_color=COR_RESUMO_BG, end_color=COR_RESUMO_BG, fill_type="solid")
+        res_flbl  = Font(bold=True, color=COR_RESUMO_TTL, name="Calibri", size=10)
+        res_fval  = Font(bold=True, name="Calibri", size=10)
+
+        def _resumo(label, value):
+            ws.append([label, value] + [""] * (len(col_names) - 2))
+            rn = ws.max_row
+            for cell in ws[rn]:
+                cell.fill = res_fill
+            ws[rn][0].font      = res_flbl
+            ws[rn][0].alignment = aln_left
+            ws[rn][1].font      = res_fval
+            ws[rn][1].alignment = aln_center
+            if isinstance(value, float):
+                ws[rn][1].number_format = '#,##0.00'
+
+        _resumo("Divergentes",        contagem.get("Divergente", 0))
+        _resumo("Ok",                 contagem.get("Ok", 0))
+        _resumo("Somente Fornecedor", contagem.get("Somente Fornecedor", 0))
+        _resumo("Conferidos",         contagem.get("Conferido", 0))
+        _resumo("Total registros",    sum(contagem.values()))
+        _resumo(f"Total Liq. {lbl1}", round(total_liq, 2))
+
+        # ── Largura automática ──
+        for col_idx in range(1, len(col_names) + 1):
+            col_letter = get_column_letter(col_idx)
+            max_len = len(str(col_names[col_idx - 1]))
+            for row in ws.iter_rows(min_row=2, min_col=col_idx, max_col=col_idx):
+                for cell in row:
+                    if cell.value:
+                        max_len = max(max_len, len(str(cell.value)))
+            ws.column_dimensions[col_letter].width = min(max_len + 3, 45)
+
         caminho = os.path.join(tempfile.gettempdir(), "conciliacao.xlsx")
-        df.to_excel(caminho, index=False, engine="openpyxl")
+        wb.save(caminho)
         return caminho
 
     # ── Pipeline completo ──
