@@ -214,6 +214,12 @@ class Conciliador:
             except Exception:
                 return 0.0
 
+        _over_defaults = {"over_agencia": "", "incentivo_fornecedor": "", "over_dif": "",
+                          "tarifa_fornecedor": "", "tarifa_dif": "",
+                          "taxa_fornecedor": "", "taxa_dif": "", "forma_pgt": "", "bilhete": "",
+                          "du_rav": "", "outras_taxas": "", "taxa_adm_forn": "", "du_forn": "", "fee_forn": "",
+                          "data_emissao": ""}
+
         # Localizadores presentes em ambos
         for loc in sorted(locs1 & locs2):
             s1 = round(sum(r["liquido"] for r in g1[loc]), 2)
@@ -326,11 +332,15 @@ class Conciliador:
                         xlsx_pairs.append((rec, None))
 
                 # 2ª passagem: registros CNF não casados → pareia por posição
-                remaining_csv = iter(cr for i, cr in enumerate(csv_recs) if not matched_csv[i])
-                xlsx_pairs = [
-                    (rec, cr if cr is not None else next(remaining_csv, None))
-                    for rec, cr in xlsx_pairs
-                ]
+                remaining_unmatched = [cr for i, cr in enumerate(csv_recs) if not matched_csv[i]]
+                ru_idx = 0
+                for j, (rec, cr) in enumerate(xlsx_pairs):
+                    if cr is None and ru_idx < len(remaining_unmatched):
+                        xlsx_pairs[j] = (rec, remaining_unmatched[ru_idx])
+                        ru_idx += 1
+
+                # Registros CNF que sobram além dos pax do Wintour
+                truly_extra_csv = remaining_unmatched[ru_idx:]
 
                 for rec, cr in xlsx_pairs:
                     ind_liq  = round(rec["liquido"], 2)
@@ -402,6 +412,32 @@ class Conciliador:
                         "outras_taxas": str(rec.get("Total Outras Taxas", "")).strip(),
                         "data_emissao": pd.Timestamp(rec.get("Data Venda")).strftime("%d/%m/%Y") if pd.notna(rec.get("Data Venda")) and rec.get("Data Venda") != "" else "",
                     })
+                # Bilhetes extras do CNF sem par no Wintour dentro deste loc
+                for extra_cr in truly_extra_csv:
+                    extra_liq = round(extra_cr["liquido"], 2)
+                    data_em_extra = str(extra_cr.get("emissao", "")).strip()
+                    resultado.append({
+                        "loc": loc,
+                        "pax": str(extra_cr.get("pax", "")).strip(),
+                        "status": "Somente Fornecedor",
+                        f"liq_{lbl1}": extra_liq if ext1 != ".xlsx" else "",
+                        f"liq_{lbl2}": extra_liq if ext2 == ".xlsx" else "",
+                        "dif": "",
+                        "origem_dif": f"Bilhete extra no {lbl1}",
+                        "origem_dif_detalhe": "",
+                        **_over_defaults,
+                        "incentivo_fornecedor": round(self.moeda_br(extra_cr.get("Incentivo", "") or extra_cr.get("incentivo", "")), 2),
+                        "tarifa_fornecedor": round(self.moeda_br(extra_cr.get("Tarifa R$", "") or extra_cr.get("tarifa_brl", "")), 2),
+                        "taxa_fornecedor": round(self.moeda_br(extra_cr.get("Taxa", "") or extra_cr.get("tx_emb", "")), 2),
+                        "taxa_adm_forn": round(self.moeda_br(extra_cr.get("acrescimos", "")), 2),
+                        "du_forn": round(self.moeda_br(extra_cr.get("TxDU", "") or extra_cr.get("repasse_du", "")), 2),
+                        "fee_forn": round(self.moeda_br(extra_cr.get("fee", "") or extra_cr.get("Fee", "")), 2),
+                        "forma_pgt": forma_pgt,
+                        "venda": "", "cliente": "", "emissor": "", "markup": "",
+                        "bilhete": "", "du_rav": "", "outras_taxas": "",
+                        "data_emissao": data_em_extra,
+                    })
+
             else:
                 resultado.append({
                     "loc": loc, "pax": pax, "status": status,
@@ -421,12 +457,6 @@ class Conciliador:
                     "forma_pgt": forma_pgt,
                     **extras,
                 })
-
-        _over_defaults = {"over_agencia": "", "incentivo_fornecedor": "", "over_dif": "",
-                          "tarifa_fornecedor": "", "tarifa_dif": "",
-                          "taxa_fornecedor": "", "taxa_dif": "", "forma_pgt": "", "bilhete": "",
-                          "du_rav": "", "outras_taxas": "", "taxa_adm_forn": "", "du_forn": "", "fee_forn": "",
-                          "data_emissao": ""}
 
         # Somente no grupo 1
         for loc in sorted(locs1 - locs2):
@@ -516,11 +546,11 @@ class Conciliador:
 
         col_names = [
             "Passageiro", "Cliente", "Emissor", "Origem Dif.", "Detalhe da Diferença",
-            "Status", f"Liq. {lbl1}", "Incentivo (Fornecedor)", "Tarifa Fornecedor",
+            "Status", f"Liq. {lbl2}", f"Liq. {lbl1}", "Incentivo (Fornecedor)", "Tarifa Fornecedor",
             "Taxa Embarque", "Taxa DU", "Taxa Adm. Cartão", "Fee", "Markup",
             "Localizador", "Data Emissão", "Nº Venda", "Nº Bilhete",
         ]
-        COLS_NUMERICAS = {7, 8, 9, 10, 11, 12, 13}   # 1-based: colunas de valor
+        COLS_NUMERICAS = {7, 8, 9, 10, 11, 12, 13, 14}   # 1-based: colunas de valor
 
         wb = Workbook()
         ws = wb.active
@@ -561,6 +591,7 @@ class Conciliador:
                 r.get("origem_dif", ""),
                 r.get("origem_dif_detalhe", ""),
                 r["status"],
+                _num(r.get(f"liq_{lbl2}", "")),
                 _num(r.get(f"liq_{lbl1}", "")),
                 _num(r.get("incentivo_fornecedor", "")),
                 _num(r.get("tarifa_fornecedor", "")),
