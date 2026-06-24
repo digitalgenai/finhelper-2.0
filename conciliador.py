@@ -80,7 +80,7 @@ class Conciliador:
     # Colunas extras do CSV/CNF que precisamos para comparação campo a campo
     CSV_EXTRAS = ["Tarifa R$", "Taxa", "TxDU", "Incentivo",
                   "tarifa_brl", "tx_emb", "repasse_du", "incentivo", "comissao", "acrescimos",
-                  "fee", "Fee", "emissao"]
+                  "fee", "Fee", "emissao", "bilhete"]
 
     def agrupar(self, df: pd.DataFrame, ext: str) -> dict:
         """Agrupa registros por localizador."""
@@ -313,23 +313,34 @@ class Conciliador:
                 s_csv    = s2 if ext1 == ".xlsx" else s1
                 csv_recs = list(get_csv_recs(loc))
 
-                # 1ª passagem: pareia por nome exato do pax
+                # 1ª passagem: pareia por bilhete (Nr. Doc XLSX vs bilhete CNF), fallback por nome pax
                 matched_csv = [False] * len(csv_recs)
+                csv_idx_by_bilhete = {}
                 csv_idx_by_pax = {}
                 for i, cr in enumerate(csv_recs):
+                    bil_key = str(cr.get("bilhete", "")).strip()
                     pax_key = str(cr.get("pax", "")).strip().upper()
+                    if bil_key:
+                        csv_idx_by_bilhete.setdefault(bil_key, []).append(i)
                     csv_idx_by_pax.setdefault(pax_key, []).append(i)
 
                 xlsx_pairs = []
                 for rec in xlsx_group:
-                    xlsx_pax = str(rec.get("pax", "")).strip().upper()
-                    indices  = csv_idx_by_pax.get(xlsx_pax, [])
-                    if indices:
-                        idx = indices.pop(0)
+                    nr_doc_key = str(rec.get("Nr. Doc", "")).strip()
+                    xlsx_pax   = str(rec.get("pax", "")).strip().upper()
+                    bil_indices = csv_idx_by_bilhete.get(nr_doc_key, []) if nr_doc_key else []
+                    if bil_indices:
+                        idx = bil_indices.pop(0)
                         matched_csv[idx] = True
                         xlsx_pairs.append((rec, csv_recs[idx]))
                     else:
-                        xlsx_pairs.append((rec, None))
+                        pax_indices = csv_idx_by_pax.get(xlsx_pax, [])
+                        if pax_indices:
+                            idx = pax_indices.pop(0)
+                            matched_csv[idx] = True
+                            xlsx_pairs.append((rec, csv_recs[idx]))
+                        else:
+                            xlsx_pairs.append((rec, None))
 
                 # 2ª passagem: registros CNF não casados → pareia por posição
                 remaining_unmatched = [cr for i, cr in enumerate(csv_recs) if not matched_csv[i]]
@@ -407,7 +418,7 @@ class Conciliador:
                         "cliente":  str(rec.get("Cod. Cliente", "")).strip(),
                         "emissor":  str(rec.get("Cod. Emissor", "")).strip(),
                         "markup":   str(rec.get("Markup", "")).strip(),
-                        "bilhete":  form + nr_doc,
+                        "bilhete":  str(cr.get("bilhete", "")).strip() if cr is not None else form + nr_doc,
                         "du_rav":   str(rec.get("Total DU/RAV (Bruta)", "")).strip(),
                         "outras_taxas": str(rec.get("Total Outras Taxas", "")).strip(),
                         "data_emissao": pd.Timestamp(rec.get("Data Venda")).strftime("%d/%m/%Y") if pd.notna(rec.get("Data Venda")) and rec.get("Data Venda") != "" else "",
@@ -434,11 +445,16 @@ class Conciliador:
                         "fee_forn": round(self.moeda_br(extra_cr.get("fee", "") or extra_cr.get("Fee", "")), 2),
                         "forma_pgt": forma_pgt,
                         "venda": "", "cliente": "", "emissor": "", "markup": "",
-                        "bilhete": "", "du_rav": "", "outras_taxas": "",
+                        "bilhete": str(extra_cr.get("bilhete", "")).strip(), "du_rav": "", "outras_taxas": "",
                         "data_emissao": data_em_extra,
                     })
 
             else:
+                csv_recs_sp = list(get_csv_recs(loc))
+                if csv_recs_sp:
+                    cnf_bilhete = str(csv_recs_sp[0].get("bilhete", "")).strip()
+                    if cnf_bilhete:
+                        extras["bilhete"] = cnf_bilhete
                 resultado.append({
                     "loc": loc, "pax": pax, "status": status,
                     f"liq_{lbl1}": s1, f"liq_{lbl2}": s2, "dif": dif,
@@ -468,12 +484,13 @@ class Conciliador:
                 form    = str(rec.get("Form", "")).strip()
                 nr_doc  = str(rec.get("Nr. Doc", "")).strip()
                 data_em = str(rec.get("Data Venda", "") or rec.get("emissao", "")).strip()
+                bilhete_val = str(rec.get("bilhete", "")).strip() if ext1 in (".csv", ".cnf") else form + nr_doc
                 resultado.append({
                     "loc": loc, "pax": str(rec.get("pax", "")).strip(), "status": status,
                     f"liq_{lbl1}": ind_liq, f"liq_{lbl2}": "", "dif": "",
                     "origem_dif": origem,
                     **_over_defaults,
-                    "bilhete": form + nr_doc,
+                    "bilhete": bilhete_val,
                     "venda":   str(rec.get("Venda Nº", "")).strip(),
                     "cliente": str(rec.get("Cod. Cliente", "")).strip(),
                     "emissor": str(rec.get("Cod. Emissor", "")).strip(),
@@ -491,12 +508,13 @@ class Conciliador:
                 form    = str(rec.get("Form", "")).strip()
                 nr_doc  = str(rec.get("Nr. Doc", "")).strip()
                 data_em = str(rec.get("Data Venda", "") or rec.get("emissao", "")).strip()
+                bilhete_val = str(rec.get("bilhete", "")).strip() if ext2 in (".csv", ".cnf") else form + nr_doc
                 resultado.append({
                     "loc": loc, "pax": str(rec.get("pax", "")).strip(), "status": status,
                     f"liq_{lbl1}": "", f"liq_{lbl2}": ind_liq, "dif": "",
                     "origem_dif": origem,
                     **_over_defaults,
-                    "bilhete": form + nr_doc,
+                    "bilhete": bilhete_val,
                     "venda":   str(rec.get("Venda Nº", "")).strip(),
                     "cliente": str(rec.get("Cod. Cliente", "")).strip(),
                     "emissor": str(rec.get("Cod. Emissor", "")).strip(),
