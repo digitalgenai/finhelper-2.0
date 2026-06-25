@@ -80,7 +80,7 @@ class Conciliador:
     # Colunas extras do CSV/CNF que precisamos para comparação campo a campo
     CSV_EXTRAS = ["Tarifa R$", "Taxa", "TxDU", "Incentivo",
                   "tarifa_brl", "tx_emb", "repasse_du", "incentivo", "comissao", "acrescimos",
-                  "fee", "Fee", "emissao", "bilhete"]
+                  "fee", "Fee", "emissao", "bilhete", "fatura"]
 
     def agrupar(self, df: pd.DataFrame, ext: str) -> dict:
         """Agrupa registros por localizador."""
@@ -414,7 +414,7 @@ class Conciliador:
                         "du_forn": du_ind,
                         "fee_forn": fee_ind,
                         "forma_pgt": forma_pgt,
-                        "venda":    str(rec.get("Venda Nº", "")).strip(),
+                        "venda":    str(cr.get("fatura", "")).strip() if cr is not None else str(rec.get("Venda Nº", "")).strip(),
                         "cliente":  str(rec.get("Cod. Cliente", "")).strip(),
                         "emissor":  str(rec.get("Cod. Emissor", "")).strip(),
                         "markup":   str(rec.get("Markup", "")).strip(),
@@ -444,7 +444,7 @@ class Conciliador:
                         "du_forn": round(self.moeda_br(extra_cr.get("TxDU", "") or extra_cr.get("repasse_du", "")), 2),
                         "fee_forn": round(self.moeda_br(extra_cr.get("fee", "") or extra_cr.get("Fee", "")), 2),
                         "forma_pgt": forma_pgt,
-                        "venda": "", "cliente": "", "emissor": "", "markup": "",
+                        "venda": str(extra_cr.get("fatura", "")).strip(), "cliente": "", "emissor": "", "markup": "",
                         "bilhete": str(extra_cr.get("bilhete", "")).strip(), "du_rav": "", "outras_taxas": "",
                         "data_emissao": data_em_extra,
                     })
@@ -455,6 +455,9 @@ class Conciliador:
                     cnf_bilhete = str(csv_recs_sp[0].get("bilhete", "")).strip()
                     if cnf_bilhete:
                         extras["bilhete"] = cnf_bilhete
+                    cnf_fatura = str(csv_recs_sp[0].get("fatura", "")).strip()
+                    if cnf_fatura:
+                        extras["venda"] = cnf_fatura
                 resultado.append({
                     "loc": loc, "pax": pax, "status": status,
                     f"liq_{lbl1}": s1, f"liq_{lbl2}": s2, "dif": dif,
@@ -485,13 +488,14 @@ class Conciliador:
                 nr_doc  = str(rec.get("Nr. Doc", "")).strip()
                 data_em = str(rec.get("Data Venda", "") or rec.get("emissao", "")).strip()
                 bilhete_val = str(rec.get("bilhete", "")).strip() if ext1 in (".csv", ".cnf") else form + nr_doc
+                venda_val   = str(rec.get("fatura", "")).strip() if ext1 in (".csv", ".cnf") else str(rec.get("Venda Nº", "")).strip()
                 resultado.append({
                     "loc": loc, "pax": str(rec.get("pax", "")).strip(), "status": status,
                     f"liq_{lbl1}": ind_liq, f"liq_{lbl2}": "", "dif": "",
                     "origem_dif": origem,
                     **_over_defaults,
                     "bilhete": bilhete_val,
-                    "venda":   str(rec.get("Venda Nº", "")).strip(),
+                    "venda":   venda_val,
                     "cliente": str(rec.get("Cod. Cliente", "")).strip(),
                     "emissor": str(rec.get("Cod. Emissor", "")).strip(),
                     "markup":  str(rec.get("Markup", "")).strip(),
@@ -509,13 +513,14 @@ class Conciliador:
                 nr_doc  = str(rec.get("Nr. Doc", "")).strip()
                 data_em = str(rec.get("Data Venda", "") or rec.get("emissao", "")).strip()
                 bilhete_val = str(rec.get("bilhete", "")).strip() if ext2 in (".csv", ".cnf") else form + nr_doc
+                venda_val   = str(rec.get("fatura", "")).strip() if ext2 in (".csv", ".cnf") else str(rec.get("Venda Nº", "")).strip()
                 resultado.append({
                     "loc": loc, "pax": str(rec.get("pax", "")).strip(), "status": status,
                     f"liq_{lbl1}": "", f"liq_{lbl2}": ind_liq, "dif": "",
                     "origem_dif": origem,
                     **_over_defaults,
                     "bilhete": bilhete_val,
-                    "venda":   str(rec.get("Venda Nº", "")).strip(),
+                    "venda":   venda_val,
                     "cliente": str(rec.get("Cod. Cliente", "")).strip(),
                     "emissor": str(rec.get("Cod. Emissor", "")).strip(),
                     "markup":  str(rec.get("Markup", "")).strip(),
