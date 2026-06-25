@@ -313,34 +313,53 @@ class Conciliador:
                 s_csv    = s2 if ext1 == ".xlsx" else s1
                 csv_recs = list(get_csv_recs(loc))
 
-                # 1ª passagem: pareia por bilhete (Nr. Doc XLSX vs bilhete CNF), fallback por nome pax
-                matched_csv = [False] * len(csv_recs)
-                csv_idx_by_bilhete = {}
+                # Pareia registros Wintour com CNF.
+                # Passo A: bilhete (form+nrdoc como sufixo do bilhete CNF) — prioridade total.
+                # Passo B: fallback por pax apenas para quem não casou no passo A.
+                # Dois passes evitam que um record sem bilhete "roube" o CNF de outro que tem.
+                matched_csv  = [False] * len(csv_recs)
+                matched_xlsx = [False] * len(xlsx_group)
+                xlsx_pairs   = [(rec, None) for rec in xlsx_group]
+
+                def _find_cnf_by_suffix(suffix):
+                    for i, cr in enumerate(csv_recs):
+                        if matched_csv[i]:
+                            continue
+                        bil = str(cr.get("bilhete", "")).strip()
+                        if suffix and bil.endswith(suffix):
+                            return i
+                    return None
+
+                # Passo A: bilhete
+                for j, rec in enumerate(xlsx_group):
+                    form_key   = str(rec.get("Form", "")).strip()
+                    nr_doc_key = str(rec.get("Nr. Doc", "")).strip()
+                    idx = _find_cnf_by_suffix(form_key + nr_doc_key)
+                    if idx is None:
+                        idx = _find_cnf_by_suffix(nr_doc_key)
+                    if idx is not None:
+                        matched_csv[idx]  = True
+                        matched_xlsx[j]   = True
+                        xlsx_pairs[j]     = (rec, csv_recs[idx])
+
+                # Passo B: pax fallback
                 csv_idx_by_pax = {}
                 for i, cr in enumerate(csv_recs):
-                    bil_key = str(cr.get("bilhete", "")).strip()
-                    pax_key = str(cr.get("pax", "")).strip().upper()
-                    if bil_key:
-                        csv_idx_by_bilhete.setdefault(bil_key, []).append(i)
-                    csv_idx_by_pax.setdefault(pax_key, []).append(i)
+                    if not matched_csv[i]:
+                        pax_key = str(cr.get("pax", "")).strip().upper()
+                        csv_idx_by_pax.setdefault(pax_key, []).append(i)
 
-                xlsx_pairs = []
-                for rec in xlsx_group:
-                    nr_doc_key = str(rec.get("Nr. Doc", "")).strip()
-                    xlsx_pax   = str(rec.get("pax", "")).strip().upper()
-                    bil_indices = csv_idx_by_bilhete.get(nr_doc_key, []) if nr_doc_key else []
-                    if bil_indices:
-                        idx = bil_indices.pop(0)
-                        matched_csv[idx] = True
-                        xlsx_pairs.append((rec, csv_recs[idx]))
-                    else:
-                        pax_indices = csv_idx_by_pax.get(xlsx_pax, [])
-                        if pax_indices:
-                            idx = pax_indices.pop(0)
-                            matched_csv[idx] = True
-                            xlsx_pairs.append((rec, csv_recs[idx]))
-                        else:
-                            xlsx_pairs.append((rec, None))
+                for j, rec in enumerate(xlsx_group):
+                    if matched_xlsx[j]:
+                        continue
+                    xlsx_pax = str(rec.get("pax", "")).strip().upper()
+                    candidates = [i for i in csv_idx_by_pax.get(xlsx_pax, []) if not matched_csv[i]]
+                    if candidates:
+                        idx = candidates[0]
+                        csv_idx_by_pax[xlsx_pax].remove(idx)
+                        matched_csv[idx]  = True
+                        matched_xlsx[j]   = True
+                        xlsx_pairs[j]     = (rec, csv_recs[idx])
 
                 # 2ª passagem: registros CNF não casados → pareia por posição
                 remaining_unmatched = [cr for i, cr in enumerate(csv_recs) if not matched_csv[i]]
