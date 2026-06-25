@@ -493,6 +493,17 @@ class Conciliador:
                     **extras,
                 })
 
+        def _forn_fields_from_rec(rec):
+            """Extrai campos do fornecedor (CNF) para linhas Somente Fornecedor."""
+            return {
+                "incentivo_fornecedor": round(self.moeda_br(rec.get("Incentivo", "") or rec.get("incentivo", "")), 2),
+                "tarifa_fornecedor":    round(self.moeda_br(rec.get("Tarifa R$", "") or rec.get("tarifa_brl", "")), 2),
+                "taxa_fornecedor":      round(self.moeda_br(rec.get("Taxa", "") or rec.get("tx_emb", "")), 2),
+                "taxa_adm_forn":        round(self.moeda_br(rec.get("acrescimos", "")), 2),
+                "du_forn":              round(self.moeda_br(rec.get("TxDU", "") or rec.get("repasse_du", "")), 2),
+                "fee_forn":             round(self.moeda_br(rec.get("fee", "") or rec.get("Fee", "")), 2),
+            }
+
         # Somente no grupo 1
         for loc in sorted(locs1 - locs2):
             status = "Somente Fornecedor" if ext1 != ".xlsx" else "Somente Wintour"
@@ -505,11 +516,13 @@ class Conciliador:
                 data_em = str(rec.get("Data Venda", "") or rec.get("emissao", "")).strip()
                 bilhete_val = str(rec.get("bilhete", "")).strip() if ext1 in (".csv", ".cnf") else form + nr_doc
                 venda_val   = "" if ext1 in (".csv", ".cnf") else str(rec.get("Venda Nº", "")).strip()
+                extra_forn  = _forn_fields_from_rec(rec) if ext1 in (".csv", ".cnf") else {}
                 resultado.append({
                     "loc": loc, "pax": str(rec.get("pax", "")).strip(), "status": status,
                     f"liq_{lbl1}": ind_liq, f"liq_{lbl2}": "", "dif": "",
                     "origem_dif": origem,
                     **_over_defaults,
+                    **extra_forn,
                     "bilhete": bilhete_val,
                     "venda":   venda_val,
                     "cliente": str(rec.get("Cod. Cliente", "")).strip(),
@@ -530,11 +543,13 @@ class Conciliador:
                 data_em = str(rec.get("Data Venda", "") or rec.get("emissao", "")).strip()
                 bilhete_val = str(rec.get("bilhete", "")).strip() if ext2 in (".csv", ".cnf") else form + nr_doc
                 venda_val   = "" if ext2 in (".csv", ".cnf") else str(rec.get("Venda Nº", "")).strip()
+                extra_forn  = _forn_fields_from_rec(rec) if ext2 in (".csv", ".cnf") else {}
                 resultado.append({
                     "loc": loc, "pax": str(rec.get("pax", "")).strip(), "status": status,
                     f"liq_{lbl1}": "", f"liq_{lbl2}": ind_liq, "dif": "",
                     "origem_dif": origem,
                     **_over_defaults,
+                    **extra_forn,
                     "bilhete": bilhete_val,
                     "venda":   venda_val,
                     "cliente": str(rec.get("Cod. Cliente", "")).strip(),
