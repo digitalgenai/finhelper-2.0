@@ -313,10 +313,11 @@ class Conciliador:
                 s_csv    = s2 if ext1 == ".xlsx" else s1
                 csv_recs = list(get_csv_recs(loc))
 
-                # Pareia registros Wintour com CNF.
-                # Passo A: bilhete (form+nrdoc como sufixo do bilhete CNF) — prioridade total.
-                # Passo B: fallback por pax apenas para quem não casou no passo A.
-                # Dois passes evitam que um record sem bilhete "roube" o CNF de outro que tem.
+                # Pareia registros Wintour com CNF em dois passes:
+                # Passo A — bilhete obrigatório: form+nrdoc como sufixo do bilhete CNF.
+                # Passo B — pax fallback SOMENTE para CNF sem bilhete (sem bilhete não é possível validar).
+                # CNF com bilhete que não casou no passo A → Somente Fornecedor (bilhete não bate).
+                # Wintour sem par → Somente Wintour.
                 matched_csv  = [False] * len(csv_recs)
                 matched_xlsx = [False] * len(xlsx_group)
                 xlsx_pairs   = [(rec, None) for rec in xlsx_group]
@@ -342,35 +343,27 @@ class Conciliador:
                         matched_xlsx[j]   = True
                         xlsx_pairs[j]     = (rec, csv_recs[idx])
 
-                # Passo B: pax fallback
-                csv_idx_by_pax = {}
+                # Passo B: fallback por pax — apenas CNF SEM bilhete (não conseguimos validar bilhete)
+                csv_no_bil_by_pax = {}
                 for i, cr in enumerate(csv_recs):
-                    if not matched_csv[i]:
+                    if not matched_csv[i] and not str(cr.get("bilhete", "")).strip():
                         pax_key = str(cr.get("pax", "")).strip().upper()
-                        csv_idx_by_pax.setdefault(pax_key, []).append(i)
+                        csv_no_bil_by_pax.setdefault(pax_key, []).append(i)
 
                 for j, rec in enumerate(xlsx_group):
                     if matched_xlsx[j]:
                         continue
                     xlsx_pax = str(rec.get("pax", "")).strip().upper()
-                    candidates = [i for i in csv_idx_by_pax.get(xlsx_pax, []) if not matched_csv[i]]
+                    candidates = [i for i in csv_no_bil_by_pax.get(xlsx_pax, []) if not matched_csv[i]]
                     if candidates:
                         idx = candidates[0]
-                        csv_idx_by_pax[xlsx_pax].remove(idx)
+                        csv_no_bil_by_pax[xlsx_pax].remove(idx)
                         matched_csv[idx]  = True
                         matched_xlsx[j]   = True
                         xlsx_pairs[j]     = (rec, csv_recs[idx])
 
-                # 2ª passagem: registros CNF não casados → pareia por posição
-                remaining_unmatched = [cr for i, cr in enumerate(csv_recs) if not matched_csv[i]]
-                ru_idx = 0
-                for j, (rec, cr) in enumerate(xlsx_pairs):
-                    if cr is None and ru_idx < len(remaining_unmatched):
-                        xlsx_pairs[j] = (rec, remaining_unmatched[ru_idx])
-                        ru_idx += 1
-
-                # Registros CNF que sobram além dos pax do Wintour
-                truly_extra_csv = remaining_unmatched[ru_idx:]
+                # CNF que não casaram → Somente Fornecedor (bilhete não correspondeu)
+                truly_extra_csv = [cr for i, cr in enumerate(csv_recs) if not matched_csv[i]]
 
                 for rec, cr in xlsx_pairs:
                     ind_liq  = round(rec["liquido"], 2)
